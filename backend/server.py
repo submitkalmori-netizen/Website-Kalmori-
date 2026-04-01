@@ -171,6 +171,30 @@ class AIDescriptionRequest(BaseModel):
     genre: str
     mood: Optional[str] = None
 
+# ============= SPLIT PAYMENT MODELS =============
+class Collaborator(BaseModel):
+    name: str
+    email: EmailStr
+    role: str  # songwriter, producer, featured_artist, etc.
+    percentage: float
+
+class SplitCreate(BaseModel):
+    track_id: str
+    collaborators: List[Collaborator]
+
+class SplitUpdate(BaseModel):
+    collaborators: List[Collaborator]
+
+# ============= ADMIN MODELS =============
+class AdminReviewAction(BaseModel):
+    action: str  # approve, reject
+    notes: Optional[str] = None
+
+class AdminUserUpdate(BaseModel):
+    role: Optional[str] = None
+    plan: Optional[str] = None
+    status: Optional[str] = None  # active, suspended
+
 # ============= HELPER FUNCTIONS =============
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
@@ -215,12 +239,20 @@ async def get_current_user(request: Request) -> dict:
         user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0})
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        if user.get("status") == "suspended":
+            raise HTTPException(status_code=403, detail="Account suspended")
         user.pop("password_hash", None)
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+async def require_admin(request: Request) -> dict:
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
 
 # Object Storage helpers
 def init_storage():
@@ -709,19 +741,53 @@ async def submit_distribution(release_id: str, stores: List[str], request: Reque
                     "artist_id": user["id"],
                     "store_id": store_id,
                     "store_name": store["store_name"],
-                    "status": "processing",
+                    "status": "pending_review",
                     "submitted_at": datetime.now(timezone.utc).isoformat()
                 }},
                 upsert=True
             )
     
-    # Update release status
-    await db.releases.update_one(
-        {"id": release_id},
-        {"$set": {"status": "distributed"}}
+    # Create ingestion submission record
+    submission_id = f"sub_{uuid.uuid4().hex[:12]}"
+    await db.submissions.update_one(
+        {"release_id": release_id},
+        {"$set": {
+            "id": submission_id,
+            "release_id": release_id,
+            "artist_id": user["id"],
+            "artist_name": user.get("artist_name", user["name"]),
+            "release_title": release["title"],
+            "release_type": release["release_type"],
+            "genre": release.get("genre", ""),
+            "track_count": len(tracks),
+            "stores": stores,
+            "status": "pending_review",
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+            "reviewed_at": None,
+            "reviewed_by": None,
+            "review_notes": None
+        }},
+        upsert=True
     )
     
-    return {"message": f"Submitted to {len(stores)} stores", "stores": stores}
+    # Update release status to pending_review (ingestion pipeline)
+    await db.releases.update_one(
+        {"id": release_id},
+        {"$set": {"status": "pending_review", "submitted_stores": stores}}
+    )
+    
+    # Notify admin
+    await db.notifications.insert_one({
+        "id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": "admin",
+        "type": "new_submission",
+        "message": f"New submission: {release['title']} by {user.get('artist_name', user['name'])}",
+        "release_id": release_id,
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"message": f"Submitted for review to {len(stores)} stores", "stores": stores, "status": "pending_review"}
 
 @api_router.get("/distributions/{release_id}")
 async def get_distribution_status(release_id: str, request: Request):
@@ -1146,6 +1212,295 @@ async def mark_notification_read(notification_id: str, request: Request):
     )
     return {"message": "Marked as read"}
 
+# ============= ADMIN ENDPOINTS =============
+@api_router.get("/admin/dashboard")
+async def admin_dashboard(request: Request):
+    admin = await require_admin(request)
+    
+    total_users = await db.users.count_documents({})
+    total_releases = await db.releases.count_documents({})
+    total_tracks = await db.tracks.count_documents({})
+    pending_submissions = await db.submissions.count_documents({"status": "pending_review"})
+    approved_submissions = await db.submissions.count_documents({"status": "approved"})
+    rejected_submissions = await db.submissions.count_documents({"status": "rejected"})
+    
+    # Revenue stats
+    pipeline = [{"$group": {"_id": None, "total": {"$sum": "$amount"}}}]
+    revenue_result = await db.payment_transactions.aggregate(pipeline).to_list(1)
+    total_revenue = revenue_result[0]["total"] if revenue_result else 0
+    
+    # Users by plan
+    plan_pipeline = [{"$group": {"_id": "$plan", "count": {"$sum": 1}}}]
+    plan_result = await db.users.aggregate(plan_pipeline).to_list(10)
+    users_by_plan = {r["_id"]: r["count"] for r in plan_result}
+    
+    # Recent activity (last 7 days)
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    new_users_week = await db.users.count_documents({"created_at": {"$gte": week_ago}})
+    new_releases_week = await db.releases.count_documents({"created_at": {"$gte": week_ago}})
+    
+    return {
+        "total_users": total_users,
+        "total_releases": total_releases,
+        "total_tracks": total_tracks,
+        "pending_submissions": pending_submissions,
+        "approved_submissions": approved_submissions,
+        "rejected_submissions": rejected_submissions,
+        "total_revenue": round(total_revenue, 2),
+        "users_by_plan": users_by_plan,
+        "new_users_week": new_users_week,
+        "new_releases_week": new_releases_week
+    }
+
+@api_router.get("/admin/submissions")
+async def get_submissions(request: Request, status: Optional[str] = None, page: int = 1, limit: int = 20):
+    admin = await require_admin(request)
+    
+    query = {}
+    if status:
+        query["status"] = status
+    
+    skip = (page - 1) * limit
+    total = await db.submissions.count_documents(query)
+    submissions = await db.submissions.find(query, {"_id": 0}).sort("submitted_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    return {"submissions": submissions, "total": total, "page": page, "pages": (total + limit - 1) // limit}
+
+@api_router.get("/admin/submissions/{release_id}")
+async def get_submission_detail(release_id: str, request: Request):
+    admin = await require_admin(request)
+    
+    submission = await db.submissions.find_one({"release_id": release_id}, {"_id": 0})
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    
+    release = await db.releases.find_one({"id": release_id}, {"_id": 0})
+    tracks = await db.tracks.find({"release_id": release_id}, {"_id": 0}).sort("track_number", 1).to_list(50)
+    artist = await db.users.find_one({"id": submission["artist_id"]}, {"_id": 0, "password_hash": 0})
+    
+    return {
+        "submission": submission,
+        "release": release,
+        "tracks": tracks,
+        "artist": artist
+    }
+
+@api_router.put("/admin/submissions/{release_id}/review")
+async def review_submission(release_id: str, review: AdminReviewAction, request: Request):
+    admin = await require_admin(request)
+    
+    submission = await db.submissions.find_one({"release_id": release_id})
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    
+    if submission["status"] != "pending_review":
+        raise HTTPException(status_code=400, detail="Submission already reviewed")
+    
+    new_status = "approved" if review.action == "approve" else "rejected"
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Update submission
+    await db.submissions.update_one(
+        {"release_id": release_id},
+        {"$set": {
+            "status": new_status,
+            "reviewed_at": now,
+            "reviewed_by": admin["id"],
+            "review_notes": review.notes
+        }}
+    )
+    
+    if review.action == "approve":
+        # Update release status to distributed
+        await db.releases.update_one(
+            {"id": release_id},
+            {"$set": {"status": "distributed"}}
+        )
+        # Update distribution records
+        await db.distributions.update_many(
+            {"release_id": release_id},
+            {"$set": {"status": "live", "approved_at": now}}
+        )
+        notify_msg = f"Your release has been approved and is now live on all selected stores!"
+    else:
+        # Update release status to rejected
+        await db.releases.update_one(
+            {"id": release_id},
+            {"$set": {"status": "rejected", "rejection_reason": review.notes}}
+        )
+        await db.distributions.update_many(
+            {"release_id": release_id},
+            {"$set": {"status": "rejected"}}
+        )
+        notify_msg = f"Your release was not approved. Reason: {review.notes or 'Does not meet guidelines.'}"
+    
+    # Notify artist
+    await db.notifications.insert_one({
+        "id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": submission["artist_id"],
+        "type": "review_result",
+        "message": notify_msg,
+        "release_id": release_id,
+        "read": False,
+        "created_at": now
+    })
+    
+    # Audit log
+    await db.admin_actions.insert_one({
+        "id": f"act_{uuid.uuid4().hex[:12]}",
+        "admin_id": admin["id"],
+        "action": f"review_{review.action}",
+        "target_type": "release",
+        "target_id": release_id,
+        "notes": review.notes,
+        "created_at": now
+    })
+    
+    return {"message": f"Submission {new_status}", "status": new_status}
+
+@api_router.get("/admin/users")
+async def admin_get_users(request: Request, page: int = 1, limit: int = 20, search: Optional[str] = None):
+    admin = await require_admin(request)
+    
+    query = {}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search, "$options": "i"}},
+            {"email": {"$regex": search, "$options": "i"}},
+            {"artist_name": {"$regex": search, "$options": "i"}}
+        ]
+    
+    skip = (page - 1) * limit
+    total = await db.users.count_documents(query)
+    users = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    # Enrich with release count
+    for user in users:
+        user["release_count"] = await db.releases.count_documents({"artist_id": user["id"]})
+    
+    return {"users": users, "total": total, "page": page, "pages": (total + limit - 1) // limit}
+
+@api_router.put("/admin/users/{user_id}")
+async def admin_update_user(user_id: str, update: AdminUserUpdate, request: Request):
+    admin = await require_admin(request)
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_doc = {}
+    if update.role:
+        update_doc["role"] = update.role
+    if update.plan:
+        update_doc["plan"] = update.plan
+    if update.status:
+        update_doc["status"] = update.status
+    
+    if update_doc:
+        update_doc["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.users.update_one({"id": user_id}, {"$set": update_doc})
+    
+    # Audit log
+    await db.admin_actions.insert_one({
+        "id": f"act_{uuid.uuid4().hex[:12]}",
+        "admin_id": admin["id"],
+        "action": "update_user",
+        "target_type": "user",
+        "target_id": user_id,
+        "notes": str(update_doc),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"message": "User updated"}
+
+# ============= SPLIT PAYMENT ENDPOINTS =============
+@api_router.post("/splits")
+async def create_split(split: SplitCreate, request: Request):
+    user = await get_current_user(request)
+    
+    # Verify track belongs to user
+    track = await db.tracks.find_one({"id": split.track_id, "artist_id": user["id"]})
+    if not track:
+        raise HTTPException(status_code=404, detail="Track not found")
+    
+    # Validate percentages sum to <= 100
+    total_pct = sum(c.percentage for c in split.collaborators)
+    if total_pct > 100:
+        raise HTTPException(status_code=400, detail="Total split percentages cannot exceed 100%")
+    if total_pct < 0:
+        raise HTTPException(status_code=400, detail="Percentages must be positive")
+    
+    # Owner gets the remainder
+    owner_percentage = 100.0 - total_pct
+    
+    split_id = f"split_{uuid.uuid4().hex[:12]}"
+    split_doc = {
+        "id": split_id,
+        "track_id": split.track_id,
+        "release_id": track["release_id"],
+        "owner_id": user["id"],
+        "owner_name": user.get("artist_name", user["name"]),
+        "owner_percentage": owner_percentage,
+        "collaborators": [c.model_dump() for c in split.collaborators],
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Upsert — one split agreement per track
+    await db.splits.update_one(
+        {"track_id": split.track_id},
+        {"$set": split_doc},
+        upsert=True
+    )
+    
+    return {"message": "Split agreement created", "split_id": split_id, "owner_percentage": owner_percentage}
+
+@api_router.get("/splits/{track_id}")
+async def get_split(track_id: str, request: Request):
+    user = await get_current_user(request)
+    
+    split = await db.splits.find_one({"track_id": track_id}, {"_id": 0})
+    if not split:
+        return {"track_id": track_id, "collaborators": [], "owner_percentage": 100.0}
+    
+    return split
+
+@api_router.put("/splits/{track_id}")
+async def update_split(track_id: str, update: SplitUpdate, request: Request):
+    user = await get_current_user(request)
+    
+    track = await db.tracks.find_one({"id": track_id, "artist_id": user["id"]})
+    if not track:
+        raise HTTPException(status_code=404, detail="Track not found")
+    
+    total_pct = sum(c.percentage for c in update.collaborators)
+    if total_pct > 100:
+        raise HTTPException(status_code=400, detail="Total split percentages cannot exceed 100%")
+    
+    owner_percentage = 100.0 - total_pct
+    
+    await db.splits.update_one(
+        {"track_id": track_id},
+        {"$set": {
+            "collaborators": [c.model_dump() for c in update.collaborators],
+            "owner_percentage": owner_percentage,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"message": "Split updated", "owner_percentage": owner_percentage}
+
+@api_router.delete("/splits/{track_id}")
+async def delete_split(track_id: str, request: Request):
+    user = await get_current_user(request)
+    
+    track = await db.tracks.find_one({"id": track_id, "artist_id": user["id"]})
+    if not track:
+        raise HTTPException(status_code=404, detail="Track not found")
+    
+    await db.splits.delete_one({"track_id": track_id})
+    return {"message": "Split agreement removed"}
+
 # ============= FILE SERVING =============
 @api_router.get("/files/{path:path}")
 async def serve_file(path: str, request: Request, auth: Optional[str] = Query(None)):
@@ -1201,6 +1556,10 @@ async def startup():
     await db.distributions.create_index([("release_id", 1), ("store_id", 1)])
     await db.royalties.create_index("release_id")
     await db.wallets.create_index("user_id", unique=True)
+    await db.submissions.create_index("release_id", unique=True)
+    await db.submissions.create_index("status")
+    await db.splits.create_index("track_id", unique=True)
+    await db.admin_actions.create_index("admin_id")
     
     # Initialize storage
     try:

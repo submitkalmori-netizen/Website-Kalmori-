@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { Button } from './ui/button';
-import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus } from '@phosphor-icons/react';
+import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck } from '@phosphor-icons/react';
 
 const DashboardLayout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -42,6 +42,16 @@ const DashboardLayout = ({ children }) => {
                 {item.icon} {item.label}
               </Link>
             ))}
+            {user?.role === 'admin' && (
+              <>
+                <div className="border-t border-white/10 my-3" />
+                <Link to="/admin" onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-[#E53935] hover:bg-[#E53935]/10 transition-all"
+                  data-testid="nav-admin">
+                  <ShieldCheck className="w-5 h-5" /> Admin Panel
+                </Link>
+              </>
+            )}
           </nav>
 
           <div className="p-4 border-t border-white/10">
