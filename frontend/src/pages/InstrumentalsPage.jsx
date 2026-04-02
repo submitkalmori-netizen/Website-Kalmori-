@@ -73,12 +73,9 @@ export default function InstrumentalsPage() {
 
   useEffect(() => {
     fetchBeats();
-    // Handle purchase success/cancel return
+    // Handle purchase cancel return
     const params = new URLSearchParams(window.location.search);
-    if (params.get('purchase') === 'success') {
-      toast.success('Beat purchased! Check your email for the download link.');
-      window.history.replaceState({}, '', '/instrumentals');
-    } else if (params.get('purchase') === 'cancelled') {
+    if (params.get('purchase') === 'cancelled') {
       toast.error('Purchase was cancelled');
       window.history.replaceState({}, '', '/instrumentals');
     }

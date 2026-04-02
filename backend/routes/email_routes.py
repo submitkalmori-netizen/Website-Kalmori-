@@ -32,12 +32,58 @@ async def send_email(to: str, subject: str, html: str):
         logger.warning(f"Email skipped (no Resend config): {subject} -> {to}")
         return False
     try:
-        resend.Emails.send({"from": f"Kalmori <{SENDER_EMAIL}>", "to": [to], "subject": subject, "html": html})
+        import asyncio
+        params = {"from": f"Kalmori <{SENDER_EMAIL}>", "to": [to], "subject": subject, "html": html}
+        await asyncio.to_thread(resend.Emails.send, params)
         logger.info(f"Email sent: {subject} -> {to}")
         return True
     except Exception as e:
         logger.error(f"Email failed: {e}")
         return False
+
+
+async def send_beat_purchase_receipt(user_email: str, user_name: str, beat_title: str, license_type: str, amount: float, receipt_id: str):
+    license_labels = {"basic_lease": "Basic Lease", "premium_lease": "Premium Lease", "unlimited_lease": "Unlimited Lease", "exclusive": "Exclusive Rights"}
+    license_label = license_labels.get(license_type, license_type)
+    html = f"""<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#000;color:#fff;border-radius:16px;overflow:hidden;">
+    <div style="background:linear-gradient(90deg,#7C4DFF,#E040FB);padding:30px;text-align:center;">
+    <h1 style="color:white;margin:0;font-size:24px;">Beat Purchase Receipt</h1></div>
+    <div style="padding:30px;">
+    <p>Hi {user_name},</p>
+    <p>Your beat purchase was successful! Here are the details:</p>
+    <div style="background:#1a1a1a;border-radius:12px;padding:20px;margin:20px 0;">
+    <table style="width:100%;border-collapse:collapse;">
+    <tr><td style="padding:8px 0;color:#888;">Beat:</td><td style="padding:8px 0;text-align:right;font-weight:bold;">{beat_title}</td></tr>
+    <tr><td style="padding:8px 0;color:#888;">License:</td><td style="padding:8px 0;text-align:right;font-weight:bold;">{license_label}</td></tr>
+    <tr><td style="padding:8px 0;color:#888;">Amount:</td><td style="padding:8px 0;text-align:right;font-weight:bold;color:#4CAF50;">${amount:.2f} USD</td></tr>
+    <tr><td style="padding:8px 0;color:#888;">Receipt ID:</td><td style="padding:8px 0;text-align:right;font-size:12px;">{receipt_id}</td></tr>
+    </table></div>
+    <p>You can download your beat files from your <strong>My Purchases</strong> page in the dashboard.</p>
+    <div style="text-align:center;margin:30px 0;">
+    <a href="{FRONTEND_URL}/purchases" style="background:#7C4DFF;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">View My Purchases</a></div>
+    <p style="color:#888;font-size:13px;">Thank you for choosing Kalmori!</p>
+    </div></div>"""
+    await send_email(user_email, f"Beat Purchase Receipt: {beat_title}", html)
+
+
+async def send_subscription_receipt(user_email: str, user_name: str, plan_name: str, amount: float, receipt_id: str):
+    html = f"""<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#000;color:#fff;border-radius:16px;overflow:hidden;">
+    <div style="background:linear-gradient(90deg,#FFD700,#FFA000);padding:30px;text-align:center;">
+    <h1 style="color:#000;margin:0;font-size:24px;">Subscription Activated!</h1></div>
+    <div style="padding:30px;">
+    <p>Hi {user_name},</p>
+    <p>Your subscription has been activated! Here are the details:</p>
+    <div style="background:#1a1a1a;border-radius:12px;padding:20px;margin:20px 0;">
+    <table style="width:100%;border-collapse:collapse;">
+    <tr><td style="padding:8px 0;color:#888;">Plan:</td><td style="padding:8px 0;text-align:right;font-weight:bold;">{plan_name}</td></tr>
+    <tr><td style="padding:8px 0;color:#888;">Amount:</td><td style="padding:8px 0;text-align:right;font-weight:bold;color:#4CAF50;">${amount:.2f}/month</td></tr>
+    <tr><td style="padding:8px 0;color:#888;">Receipt ID:</td><td style="padding:8px 0;text-align:right;font-size:12px;">{receipt_id}</td></tr>
+    </table></div>
+    <p>Enjoy all the premium features of your new plan!</p>
+    <div style="text-align:center;margin:30px 0;">
+    <a href="{FRONTEND_URL}/dashboard" style="background:#FFD700;color:#000;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Go to Dashboard</a></div>
+    </div></div>"""
+    await send_email(user_email, f"Subscription Receipt: {plan_name} Plan", html)
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr

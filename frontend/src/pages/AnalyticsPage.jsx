@@ -12,7 +12,9 @@ import {
 } from 'recharts';
 import { toast } from 'sonner';
 
-const PLATFORM_COLORS = { Spotify: '#1DB954', 'Apple Music': '#FC3C44', 'YouTube Music': '#FF0000', 'Amazon Music': '#FF9900', TikTok: '#010101', Tidal: '#00FFFF', Other: '#888' };
+const PLATFORM_COLORS = { Spotify: '#1DB954', 'Apple Music': '#FC3C44', 'YouTube Music': '#FF0000', 'Amazon Music': '#FF9900', TikTok: '#010101', Tidal: '#00FFFF', Deezer: '#A238FF', SoundCloud: '#FF5500', Other: '#888' };
+
+const COUNTRY_FLAGS = { US: '\u{1F1FA}\u{1F1F8}', UK: '\u{1F1EC}\u{1F1E7}', GB: '\u{1F1EC}\u{1F1E7}', NG: '\u{1F1F3}\u{1F1EC}', DE: '\u{1F1E9}\u{1F1EA}', CA: '\u{1F1E8}\u{1F1E6}', AU: '\u{1F1E6}\u{1F1FA}', BR: '\u{1F1E7}\u{1F1F7}', JP: '\u{1F1EF}\u{1F1F5}', FR: '\u{1F1EB}\u{1F1F7}', IN: '\u{1F1EE}\u{1F1F3}', JM: '\u{1F1EF}\u{1F1F2}', KE: '\u{1F1F0}\u{1F1EA}', GH: '\u{1F1EC}\u{1F1ED}', ZA: '\u{1F1FF}\u{1F1E6}' };
 
 const WORLD_REGIONS = [
   { name: 'United States', code: 'US', streams: 0, lat: 39.8, lng: -98.5 },
@@ -36,6 +38,7 @@ const AnalyticsPage = () => {
   const [insights, setInsights] = useState('');
   const [platformData, setPlatformData] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [liveFeed, setLiveFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -44,14 +47,16 @@ const AnalyticsPage = () => {
 
   const fetchAll = async () => {
     try {
-      const [analyticsRes, platformRes, chartRes] = await Promise.all([
+      const [analyticsRes, platformRes, chartRes, feedRes] = await Promise.all([
         axios.get(`${API}/analytics/overview`, { withCredentials: true }),
         axios.get(`${API}/analytics/platform-breakdown`, { withCredentials: true }),
-        axios.get(`${API}/analytics/chart-data?days=14`, { withCredentials: true })
+        axios.get(`${API}/analytics/chart-data?days=14`, { withCredentials: true }),
+        axios.get(`${API}/analytics/live-feed?limit=20`, { withCredentials: true }).catch(() => ({ data: { events: [] } })),
       ]);
       setAnalytics(analyticsRes.data);
       setPlatformData(platformRes.data);
       setChartData(chartRes.data);
+      setLiveFeed(feedRes.data.events || []);
     } catch (error) { console.error('Analytics fetch error:', error); }
     finally { setLoading(false); }
   };
@@ -82,6 +87,7 @@ const AnalyticsPage = () => {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'live', label: 'Live Activity' },
     { id: 'audience', label: 'Audience Map' },
     { id: 'tiktok', label: 'TikTok UGC' },
     { id: 'platforms', label: 'Platforms' },
@@ -177,6 +183,62 @@ const AnalyticsPage = () => {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live Activity Tab */}
+        {activeTab === 'live' && (
+          <div className="space-y-6">
+            <div className="bg-[#141414] border border-white/10 p-6 rounded-md">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-medium flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[#4CAF50] animate-pulse" />
+                  Live Streaming Feed
+                </h2>
+                <button onClick={fetchAll} className="text-xs text-[#7C4DFF] hover:underline" data-testid="refresh-feed-btn">Refresh</button>
+              </div>
+              {liveFeed.length === 0 ? (
+                <div className="text-center py-12">
+                  <Play className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-sm text-[#A1A1AA]">No streaming events yet. Distribute your music to start seeing data!</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {liveFeed.map((event, i) => (
+                    <div key={event.id || i} className="flex items-center gap-3 p-3 rounded-lg bg-[#0a0a0a] hover:bg-white/5 transition-colors animate-fadeInUp" style={{ animationDelay: `${i * 0.03}s` }} data-testid={`stream-event-${i}`}>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${PLATFORM_COLORS[event.platform] || '#888'}20` }}>
+                        <MusicNote className="w-4 h-4" style={{ color: PLATFORM_COLORS[event.platform] || '#888' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-white truncate">{event.release_title || 'Track'}</span>
+                          <span className="text-xs text-gray-500">on</span>
+                          <span className="text-xs font-medium" style={{ color: PLATFORM_COLORS[event.platform] || '#888' }}>{event.platform}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span>{COUNTRY_FLAGS[event.country] || ''} {event.country}</span>
+                          <span>{event.timestamp ? new Date(event.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-mono text-[#4CAF50]">+${(event.revenue || 0).toFixed(4)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Platform stats summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {(platformData.length ? platformData.slice(0, 4) : []).map(p => (
+                <div key={p.name} className="bg-[#141414] border border-white/10 p-4 rounded-md text-center">
+                  <div className="w-10 h-10 rounded-full mx-auto mb-2 flex items-center justify-center" style={{ backgroundColor: `${p.color || '#888'}20` }}>
+                    <MusicNote className="w-5 h-5" style={{ color: p.color || '#888' }} />
+                  </div>
+                  <p className="text-sm font-bold font-mono">{(p.streams || 0).toLocaleString()}</p>
+                  <p className="text-xs text-[#A1A1AA]">{p.name}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}

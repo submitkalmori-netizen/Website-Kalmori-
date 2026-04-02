@@ -38,6 +38,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import SpotifyCanvasPage from './pages/SpotifyCanvasPage';
 import ContentIdPage from './pages/ContentIdPage';
+import MyPurchasesPage from './pages/MyPurchasesPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -259,6 +260,7 @@ const AppRouter = () => {
       <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
       <Route path="/spotify-canvas" element={<ProtectedRoute><SpotifyCanvasPage /></ProtectedRoute>} />
       <Route path="/content-id" element={<ProtectedRoute><ContentIdPage /></ProtectedRoute>} />
+      <Route path="/purchases" element={<ProtectedRoute><MyPurchasesPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/submissions" element={<AdminRoute><AdminSubmissionsPage /></AdminRoute>} />

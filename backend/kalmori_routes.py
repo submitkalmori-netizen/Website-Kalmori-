@@ -1129,23 +1129,67 @@ async def get_kalmori_withdrawals(request: Request):
 @kalmori_router.get("/analytics/chart-data")
 async def get_chart_data(days: int = 7, request: Request = None):
     current_user = await _get_current_user_flexible(request)
+    user_id = current_user["id"]
+    # Aggregate stream_events for this user over the given days
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    pipeline = [
+        {"$match": {"artist_id": user_id, "timestamp": {"$gte": cutoff}}},
+        {"$group": {
+            "_id": {"$substr": ["$timestamp", 0, 10]},
+            "plays": {"$sum": 1},
+            "revenue": {"$sum": "$revenue"},
+        }},
+        {"$sort": {"_id": 1}},
+    ]
+    results = await db.stream_events.aggregate(pipeline).to_list(days + 1)
+    date_map = {r["_id"]: {"plays": r["plays"], "revenue": round(r["revenue"], 2)} for r in results}
     data = []
     for i in range(days):
         date = datetime.now(timezone.utc) - timedelta(days=days - 1 - i)
-        data.append({"date": date.strftime("%b %d"), "plays": 0, "revenue": 0.0})
+        key = date.strftime("%Y-%m-%d")
+        label = date.strftime("%b %d")
+        entry = date_map.get(key, {"plays": 0, "revenue": 0.0})
+        data.append({"date": label, "plays": entry["plays"], "revenue": entry["revenue"]})
     return data
 
 @kalmori_router.get("/analytics/platform-breakdown")
 async def get_platform_breakdown(request: Request):
-    await _get_current_user_flexible(request)
-    return [
-        {"name": "Spotify", "percentage": 0, "color": "#1DB954"},
-        {"name": "Apple Music", "percentage": 0, "color": "#FC3C44"},
-        {"name": "YouTube Music", "percentage": 0, "color": "#FF0000"},
-        {"name": "Amazon Music", "percentage": 0, "color": "#FF9900"},
-        {"name": "Tidal", "percentage": 0, "color": "#00FFFF"},
-        {"name": "Other", "percentage": 0, "color": "#888888"}
+    current_user = await _get_current_user_flexible(request)
+    user_id = current_user["id"]
+    pipeline = [
+        {"$match": {"artist_id": user_id}},
+        {"$group": {
+            "_id": "$platform",
+            "streams": {"$sum": 1},
+            "revenue": {"$sum": "$revenue"},
+        }},
+        {"$sort": {"streams": -1}},
     ]
+    results = await db.stream_events.aggregate(pipeline).to_list(20)
+    platform_colors = {
+        "Spotify": "#1DB954", "Apple Music": "#FC3C44", "YouTube Music": "#FF0000",
+        "Amazon Music": "#FF9900", "Tidal": "#00FFFF", "TikTok": "#010101",
+        "Deezer": "#A238FF", "SoundCloud": "#FF5500", "Pandora": "#005483", "Other": "#888888"
+    }
+    if not results:
+        return [{"name": k, "streams": 0, "revenue": 0.0, "percentage": 0, "color": v} for k, v in list(platform_colors.items())[:6]]
+    total = sum(r["streams"] for r in results)
+    return [{
+        "name": r["_id"] or "Other",
+        "streams": r["streams"],
+        "revenue": round(r["revenue"], 2),
+        "percentage": round((r["streams"] / total) * 100, 1) if total > 0 else 0,
+        "color": platform_colors.get(r["_id"], "#888888"),
+    } for r in results]
+
+@kalmori_router.get("/analytics/live-feed")
+async def get_live_feed(request: Request, limit: int = 20):
+    """Get recent streaming events as a live feed"""
+    current_user = await _get_current_user_flexible(request)
+    events = await db.stream_events.find(
+        {"artist_id": current_user["id"]}, {"_id": 0}
+    ).sort("timestamp", -1).limit(limit).to_list(limit)
+    return {"events": events, "total": len(events)}
 
 # ==================== THEME ====================
 

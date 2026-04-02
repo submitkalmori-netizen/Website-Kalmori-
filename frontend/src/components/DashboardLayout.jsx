@@ -1,14 +1,102 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { Button } from './ui/button';
-import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft } from '@phosphor-icons/react';
+import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check } from '@phosphor-icons/react';
+import axios from 'axios';
+import { API } from '../App';
+
+const NotificationPanel = ({ notifications, onMarkRead, onMarkAllRead, onClose }) => (
+  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-[#111] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50" data-testid="notification-panel">
+    <div className="flex items-center justify-between p-4 border-b border-white/10">
+      <h3 className="text-sm font-bold text-white">Notifications</h3>
+      {notifications.some(n => !n.read) && (
+        <button onClick={onMarkAllRead} className="text-xs text-[#7C4DFF] hover:underline" data-testid="mark-all-read-btn">Mark all read</button>
+      )}
+    </div>
+    <div className="max-h-80 overflow-y-auto">
+      {notifications.length === 0 ? (
+        <div className="p-6 text-center text-sm text-gray-500">No notifications yet</div>
+      ) : (
+        notifications.map(n => (
+          <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${!n.read ? 'bg-[#7C4DFF]/5' : ''}`}
+            onClick={() => !n.read && onMarkRead(n.id)} data-testid={`notification-${n.id}`}>
+            <div className="flex items-start gap-3">
+              {!n.read && <div className="w-2 h-2 rounded-full bg-[#7C4DFF] mt-1.5 flex-shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white leading-snug">{n.message}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+);
 
 const DashboardLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef(null);
+
+  // Fetch notifications and unread count
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Close panel on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifications(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await axios.get(`${API}/notifications/unread-count`, { withCredentials: true });
+      setUnreadCount(res.data.count || 0);
+    } catch {}
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get(`${API}/notifications`, { withCredentials: true });
+      setNotifications(Array.isArray(res.data) ? res.data : []);
+    } catch {}
+  };
+
+  const toggleNotifications = () => {
+    if (!showNotifications) fetchNotifications();
+    setShowNotifications(!showNotifications);
+  };
+
+  const markRead = async (id) => {
+    try {
+      await axios.put(`${API}/notifications/${id}/read`, {}, { withCredentials: true });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch {}
+  };
+
+  const markAllRead = async () => {
+    try {
+      await axios.put(`${API}/notifications/read-all`, {}, { withCredentials: true });
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+    } catch {}
+  };
 
   const navItems = [
     { path: '/dashboard', icon: <House className="w-5 h-5" />, label: 'Dashboard' },
@@ -17,6 +105,7 @@ const DashboardLayout = ({ children }) => {
     { path: '/wallet', icon: <Wallet className="w-5 h-5" />, label: 'Wallet' },
     { path: '/spotify-canvas', icon: <SpotifyLogo className="w-5 h-5" />, label: 'Spotify Canvas' },
     { path: '/content-id', icon: <YoutubeLogo className="w-5 h-5" />, label: 'Content ID' },
+    { path: '/purchases', icon: <ShoppingBag className="w-5 h-5" />, label: 'My Purchases' },
     { path: '/settings', icon: <Gear className="w-5 h-5" />, label: 'Settings' },
   ];
 
@@ -79,13 +168,27 @@ const DashboardLayout = ({ children }) => {
             <div className="flex items-center gap-3">
               <button className="lg:hidden p-2 hover:bg-white/5 rounded-lg" onClick={() => navigate(-1)} data-testid="dashboard-back-btn"><ArrowLeft className="w-6 h-6" /></button>
               <span className="lg:hidden text-white text-[16px] font-bold">
-                {location.pathname === '/dashboard' ? 'Dashboard' : location.pathname === '/releases' ? 'Releases' : location.pathname === '/analytics' ? 'Analytics' : location.pathname === '/wallet' ? 'Wallet' : location.pathname === '/settings' ? 'Settings' : location.pathname === '/spotify-canvas' ? 'Spotify Canvas' : location.pathname === '/content-id' ? 'Content ID' : location.pathname.startsWith('/releases/') ? 'Release Details' : 'Dashboard'}
+                {location.pathname === '/dashboard' ? 'Dashboard' : location.pathname === '/releases' ? 'Releases' : location.pathname === '/analytics' ? 'Analytics' : location.pathname === '/wallet' ? 'Wallet' : location.pathname === '/purchases' ? 'My Purchases' : location.pathname === '/settings' ? 'Settings' : location.pathname === '/spotify-canvas' ? 'Spotify Canvas' : location.pathname === '/content-id' ? 'Content ID' : location.pathname.startsWith('/releases/') ? 'Release Details' : 'Dashboard'}
               </span>
             </div>
             <div className="flex-1" />
             <div className="flex items-center gap-4">
               <button className="lg:hidden p-2 hover:bg-white/5 rounded-lg" onClick={() => setSidebarOpen(true)}><List className="w-6 h-6" /></button>
               <span className="text-xs px-3 py-1 bg-[#FFD700]/10 text-[#FFD700] rounded-full font-semibold uppercase tracking-wider hidden sm:inline">{user?.plan || 'Free'}</span>
+              {/* Notification Bell */}
+              <div className="relative" ref={notifRef}>
+                <button onClick={toggleNotifications} className="relative p-2 hover:bg-white/5 rounded-lg transition-colors" data-testid="notification-bell">
+                  <Bell className="w-5 h-5 text-gray-400" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-[#E040FB] rounded-full flex items-center justify-center text-[10px] font-bold text-white" data-testid="unread-badge">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+                {showNotifications && (
+                  <NotificationPanel notifications={notifications} onMarkRead={markRead} onMarkAllRead={markAllRead} onClose={() => setShowNotifications(false)} />
+                )}
+              </div>
               <Link to="/releases/new">
                 <button className="btn-animated px-4 py-2 rounded-full text-sm font-semibold text-white flex items-center gap-2" data-testid="new-release-btn">
                   <Plus className="w-4 h-4" /> New Release
