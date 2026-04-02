@@ -12,6 +12,7 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - **Auth**: JWT + Google Social Login + reCAPTCHA v2
 - **AI**: OpenAI via Emergent LLM Key
 - **Email**: Resend (configured)
+- **PDF**: reportlab (server-side PDF generation)
 
 ## All Completed Features
 
@@ -49,8 +50,14 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - View all saved strategies in a scrollable panel
 - Delete saved strategies with confirmation toast
 - Compare mode: select any 2 strategies for side-by-side comparison
-- Compare view shows: Best Day, Best Time, Streams Analyzed, Top Platform, Top Country, Est. First Week, Platform Priorities, Timeline Steps
-- Highlights differences between strategies in accent color
+- Compare view: Best Day, Best Time, Streams Analyzed, Top Platform, Top Country, Est. First Week, Platform Priorities, Timeline Steps
+
+### Strategy Export to PDF (Apr 2026)
+- Server-side PDF generation using reportlab with Kalmori branding
+- Branded one-pager: header, artist info, optimal release window, platform strategy, geographic targeting, pre-release timeline, promotion tips, confidence note, footer
+- Export from current strategy results or from any saved strategy card
+- PDF filename: Kalmori_Strategy_{label}_{date}.pdf
+- Direct browser download via blob URL
 
 ### Notifications & Communication
 - Push Notifications (bell + dropdown + 30s polling)
