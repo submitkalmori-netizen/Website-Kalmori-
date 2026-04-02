@@ -11,7 +11,7 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - **Payments**: Stripe + PayPal
 - **Auth**: JWT + Google Social Login + reCAPTCHA v2
 - **AI**: OpenAI GPT-4o via Emergent LLM Key
-- **Email**: Resend (configured)
+- **Email**: Resend
 - **PDF**: reportlab
 
 ## All Completed Features
@@ -41,15 +41,19 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 ### Automated Weekly Digest Emails
 - Branded HTML email with stats, AI insights, releases. Preview modal, Send Now, Settings toggle
 
-### Revenue Analytics & Royalty Calculator (Apr 2026)
-- 4 summary cards: Gross Revenue, Platform Fee, Net Revenue, Your Take
-- Monthly Revenue Trend area chart (6 months)
-- Earnings by Platform: horizontal bar chart + detailed table (streams, rate, gross, net per platform)
-- Platform rates: Spotify $0.004, Apple Music $0.008, YouTube $0.002, Amazon $0.004, Tidal $0.012, Deezer $0.003, Pandora $0.002, SoundCloud $0.003
-- Collaborator Royalty Splits section (pulls from accepted collaborations)
-- What-If Revenue Calculator: input stream count + custom platform mix, shows projected earnings
-- Per-Stream Rate Guide for 8 platforms
-- Plan-aware fee deduction (free=15%, rise/pro=0%)
+### Revenue Analytics & Royalty Calculator
+- 4 summary cards, monthly trend chart, platform breakdown table, collaborator splits, what-if calculator, rate guide
+
+### Release Performance Leaderboard (Apr 2026)
+- Top 3 podium (gold/silver/bronze cards with sparkline mini-charts)
+- Full ranked release list with rank number, title, genre, top platform
+- 14-day sparkline SVG charts per release (green for growth, red for decline)
+- Hot streak badges (3+ consecutive days of growth)
+- Rising badges (momentum > 50%)
+- Sort by: Total Streams, This Week, Growth Rate, Revenue, Momentum
+- Filter by: All Releases, Active Only, No Streams
+- Stats columns: This Week, Total, Growth%, Revenue
+- Podium auto-hides when sort/filter changes from default
 
 ### Notifications & Communication
 - 9 notification preferences (email + push + weekly digest)
@@ -58,7 +62,7 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - All fully implemented
 
 ## All Pages & Routes
-`/` `/login` `/register` `/instrumentals` `/dashboard` `/releases` `/releases/new` `/analytics` `/wallet` `/purchases` `/collaborations` `/presave-manager` `/fan-analytics` `/revenue` `/settings` `/presave/:id` `/spotify-canvas` `/content-id` `/admin/*`
+`/` `/login` `/register` `/instrumentals` `/dashboard` `/releases` `/releases/new` `/analytics` `/wallet` `/purchases` `/collaborations` `/presave-manager` `/fan-analytics` `/revenue` `/leaderboard` `/settings` `/presave/:id` `/spotify-canvas` `/content-id` `/admin/*`
 
 ## Remaining Backlog
 - P1: Real Spotify OAuth with API credentials (placeholder ready)
