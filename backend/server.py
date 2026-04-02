@@ -1143,6 +1143,127 @@ async def delete_presave_campaign(campaign_id: str, request: Request):
     return {"message": "Campaign deleted"}
 
 
+# ============= FAN ANALYTICS =============
+@api_router.get("/fan-analytics/overview")
+async def get_fan_analytics(request: Request):
+    """Fan analytics: subscriber geo, platform clicks, engagement trends"""
+    user = await get_current_user(request)
+    campaigns = await db.presave_campaigns.find({"artist_id": user["id"]}, {"_id": 0}).to_list(50)
+    total_subscribers = sum(c.get("subscriber_count", 0) for c in campaigns)
+    total_campaigns = len(campaigns)
+
+    # Aggregate subscriber countries
+    country_counts = {}
+    subscriber_timeline = {}
+    for c in campaigns:
+        for sub in c.get("subscribers", []):
+            email = sub.get("email", "")
+            # Determine country from email domain heuristic
+            domain = email.split("@")[-1] if "@" in email else ""
+            country = "US"  # default
+            if domain.endswith(".ng"): country = "NG"
+            elif domain.endswith(".uk") or domain.endswith(".co.uk"): country = "UK"
+            elif domain.endswith(".de"): country = "DE"
+            elif domain.endswith(".fr"): country = "FR"
+            elif domain.endswith(".jp"): country = "JP"
+            elif domain.endswith(".br"): country = "BR"
+            elif domain.endswith(".au"): country = "AU"
+            elif domain.endswith(".ca"): country = "CA"
+            elif domain.endswith(".in"): country = "IN"
+            country_counts[country] = country_counts.get(country, 0) + 1
+            # Timeline
+            date = sub.get("subscribed_at", "")[:10]
+            if date:
+                subscriber_timeline[date] = subscriber_timeline.get(date, 0) + 1
+
+    # Platform engagement from stream events
+    platform_engagement = []
+    pipeline = [
+        {"$match": {"artist_id": user["id"]}},
+        {"$group": {"_id": "$platform", "streams": {"$sum": 1}, "revenue": {"$sum": "$revenue"}}},
+        {"$sort": {"streams": -1}}
+    ]
+    platform_results = await db.stream_events.aggregate(pipeline).to_list(10)
+    total_streams = sum(p["streams"] for p in platform_results) if platform_results else 1
+    platform_colors = {"Spotify": "#1DB954", "Apple Music": "#FC3C44", "YouTube Music": "#FF0000", "Amazon Music": "#FF9900", "TikTok": "#010101", "Tidal": "#00FFFF", "Deezer": "#A238FF", "SoundCloud": "#FF5500"}
+    for p in platform_results:
+        platform_engagement.append({
+            "name": p["_id"],
+            "streams": p["streams"],
+            "revenue": round(p["revenue"], 2),
+            "percentage": round(p["streams"] / total_streams * 100, 1),
+            "color": platform_colors.get(p["_id"], "#888"),
+        })
+
+    # Top listener countries from stream events
+    country_pipeline = [
+        {"$match": {"artist_id": user["id"]}},
+        {"$group": {"_id": "$country", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}, {"$limit": 10}
+    ]
+    top_countries = await db.stream_events.aggregate(country_pipeline).to_list(10)
+    total_country_streams = sum(c["count"] for c in top_countries) if top_countries else 1
+
+    # Listener growth (daily streams over 30 days)
+    growth_pipeline = [
+        {"$match": {"artist_id": user["id"]}},
+        {"$group": {"_id": {"$substr": ["$timestamp", 0, 10]}, "listeners": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}, {"$limit": 30}
+    ]
+    growth_data = await db.stream_events.aggregate(growth_pipeline).to_list(30)
+
+    # Peak listening hours
+    hour_pipeline = [
+        {"$match": {"artist_id": user["id"]}},
+        {"$addFields": {"hour_str": {"$substr": ["$timestamp", 11, 2]}}},
+        {"$group": {"_id": "$hour_str", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}}
+    ]
+    peak_hours = await db.stream_events.aggregate(hour_pipeline).to_list(24)
+
+    return {
+        "total_subscribers": total_subscribers,
+        "total_campaigns": total_campaigns,
+        "subscriber_countries": country_counts,
+        "subscriber_timeline": [{"date": k, "count": v} for k, v in sorted(subscriber_timeline.items())],
+        "platform_engagement": platform_engagement,
+        "top_countries": [{"country": c["_id"], "streams": c["count"], "percentage": round(c["count"] / total_country_streams * 100, 1)} for c in top_countries],
+        "listener_growth": [{"date": g["_id"], "listeners": g["listeners"]} for g in growth_data],
+        "peak_hours": [{"hour": int(h["_id"]) if h["_id"].isdigit() else 0, "count": h["count"]} for h in peak_hours],
+    }
+
+
+# ============= SPOTIFY CONNECTION =============
+@api_router.get("/integrations/spotify/status")
+async def get_spotify_status(request: Request):
+    user = await get_current_user(request)
+    connection = await db.integrations.find_one({"user_id": user["id"], "platform": "spotify"}, {"_id": 0})
+    if connection:
+        return {"connected": True, "spotify_id": connection.get("spotify_id"), "display_name": connection.get("display_name"), "connected_at": connection.get("connected_at")}
+    return {"connected": False}
+
+@api_router.post("/integrations/spotify/connect")
+async def connect_spotify(request: Request):
+    """Placeholder for Spotify OAuth — stores connection intent"""
+    user = await get_current_user(request)
+    body = await request.json()
+    now = datetime.now(timezone.utc).isoformat()
+    await db.integrations.update_one(
+        {"user_id": user["id"], "platform": "spotify"},
+        {"$set": {"user_id": user["id"], "platform": "spotify", "status": "pending",
+                  "spotify_id": body.get("spotify_id", ""), "display_name": body.get("display_name", ""),
+                  "connected_at": now}},
+        upsert=True
+    )
+    return {"message": "Spotify connection saved. Full OAuth coming soon."}
+
+@api_router.delete("/integrations/spotify/disconnect")
+async def disconnect_spotify(request: Request):
+    user = await get_current_user(request)
+    await db.integrations.delete_one({"user_id": user["id"], "platform": "spotify"})
+    return {"message": "Spotify disconnected"}
+
+
 # ============= SHARE YOUR STATS =============
 @api_router.get("/stats/milestones")
 async def get_milestones(request: Request):

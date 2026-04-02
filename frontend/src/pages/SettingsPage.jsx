@@ -11,12 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { 
   User, 
   MusicNotes,
+  MusicNote,
   Globe,
   Gear,
   Crown,
   CheckCircle,
   UploadSimple,
-  Bell
+  Bell,
+  SpotifyLogo,
+  Link as LinkIcon,
+  PlugsConnected
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
@@ -50,11 +54,20 @@ const SettingsPage = () => {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState({});
   const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
+  const [spotifyStatus, setSpotifyStatus] = useState(null);
 
   useEffect(() => {
     fetchData();
     fetchNotifPrefs();
+    fetchSpotifyStatus();
   }, []);
+
+  const fetchSpotifyStatus = async () => {
+    try {
+      const res = await axios.get(`${API}/integrations/spotify/status`, { withCredentials: true });
+      setSpotifyStatus(res.data);
+    } catch {}
+  };
 
   const fetchNotifPrefs = async () => {
     try {
@@ -160,6 +173,9 @@ const SettingsPage = () => {
             </TabsTrigger>
             <TabsTrigger value="notifications" className="data-[state=active]:bg-[#FF3B30] data-[state=active]:text-white" data-testid="notifications-settings-tab">
               <Bell className="w-4 h-4 mr-2" /> Notifications
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="data-[state=active]:bg-[#FF3B30] data-[state=active]:text-white" data-testid="integrations-settings-tab">
+              <PlugsConnected className="w-4 h-4 mr-2" /> Integrations
             </TabsTrigger>
           </TabsList>
 
@@ -430,6 +446,77 @@ const SettingsPage = () => {
                     <Switch checked={!!notifPrefs[key]} onCheckedChange={() => toggleNotifPref(key)} data-testid={`toggle-${key}`} />
                   </div>
                 ))}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Integrations Tab */}
+          <TabsContent value="integrations" className="space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-white mb-1">Connected Services</h2>
+              <p className="text-sm text-gray-400">Link your streaming accounts for enhanced analytics</p>
+            </div>
+
+            {/* Spotify */}
+            <div className="p-5 bg-[#141414] border border-white/10 rounded-lg" data-testid="spotify-integration">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#1DB954]/15 flex items-center justify-center">
+                    <SpotifyLogo className="w-7 h-7 text-[#1DB954]" weight="fill" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Spotify for Artists</p>
+                    <p className="text-xs text-gray-500">
+                      {spotifyStatus?.connected ? `Connected as ${spotifyStatus.display_name || 'your account'}` : 'Connect to import real streaming data'}
+                    </p>
+                  </div>
+                </div>
+                {spotifyStatus?.connected ? (
+                  <button onClick={async () => {
+                    await axios.delete(`${API}/integrations/spotify/disconnect`, { withCredentials: true });
+                    setSpotifyStatus({ connected: false });
+                    toast.success('Spotify disconnected');
+                  }} className="px-4 py-2 text-xs font-medium text-red-400 border border-red-400/30 rounded-full hover:bg-red-400/10 transition-all" data-testid="disconnect-spotify">
+                    Disconnect
+                  </button>
+                ) : (
+                  <button onClick={() => toast.info('Spotify OAuth coming soon! Connect your Spotify for Artists account for real-time streaming analytics.')}
+                    className="px-4 py-2 text-xs font-bold text-[#1DB954] border border-[#1DB954]/30 rounded-full hover:bg-[#1DB954]/10 transition-all flex items-center gap-2" data-testid="connect-spotify">
+                    <LinkIcon className="w-3.5 h-3.5" /> Connect
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Apple Music */}
+            <div className="p-5 bg-[#141414] border border-white/10 rounded-lg opacity-60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#FC3C44]/15 flex items-center justify-center">
+                    <MusicNote className="w-7 h-7 text-[#FC3C44]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">Apple Music for Artists</p>
+                    <p className="text-xs text-gray-500">Coming soon</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 text-[10px] font-bold text-gray-500 border border-white/10 rounded-full">COMING SOON</span>
+              </div>
+            </div>
+
+            {/* YouTube */}
+            <div className="p-5 bg-[#141414] border border-white/10 rounded-lg opacity-60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#FF0000]/15 flex items-center justify-center">
+                    <MusicNote className="w-7 h-7 text-[#FF0000]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">YouTube Music Analytics</p>
+                    <p className="text-xs text-gray-500">Coming soon</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 text-[10px] font-bold text-gray-500 border border-white/10 rounded-full">COMING SOON</span>
               </div>
             </div>
           </TabsContent>
