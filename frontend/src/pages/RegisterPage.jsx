@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { GoogleLogo, Envelope, Lock, User, MusicNotes, ArrowRight, Eye, EyeSlash, MapPin, Flag, Buildings, Hash, CaretDown } from '@phosphor-icons/react';
+import { GoogleLogo, Eye, EyeSlash, CaretDown, Check } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const COUNTRIES = [
@@ -32,11 +30,11 @@ const COUNTRIES = [
 ].sort();
 
 const RegisterPage = () => {
+  const [legalName, setLegalName] = useState('');
+  const [stageName, setStageName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [legalName, setLegalName] = useState('');
-  const [stageName, setStageName] = useState('');
   const [country, setCountry] = useState('');
   const [state, setState] = useState('');
   const [town, setTown] = useState('');
@@ -45,6 +43,7 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { register } = useAuth();
@@ -58,10 +57,11 @@ const RegisterPage = () => {
     e.preventDefault();
     setError('');
 
-    if (!legalName.trim()) { setError('Legal name is required'); return; }
+    if (!legalName.trim()) { setError('Name is required'); return; }
     if (!email.trim()) { setError('Email is required'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters long and contain at least 1 upper case letter, 1 number, and one special character'); return; }
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
+    if (!agreedToTerms) { setError('You must agree to the Terms & Conditions'); return; }
 
     setLoading(true);
     try {
@@ -94,41 +94,33 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black flex">
-      {/* Left side image - desktop only */}
-      <div className="hidden lg:block lg:w-1/2 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260)' }}>
-        <div className="h-full w-full bg-gradient-to-l from-black to-transparent" />
-      </div>
+    <div className="min-h-screen bg-black flex items-start justify-center overflow-y-auto">
+      <div className="w-full max-w-[460px] mx-auto px-6 py-10 text-center">
+        {/* Header */}
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+          Join <span style={{ color: '#E040FB' }}>Kalmori</span>
+        </h1>
+        <p className="text-gray-500 text-sm mb-6">Start distributing your music worldwide</p>
 
-      {/* Registration form */}
-      <div className="flex-1 flex items-start justify-center p-6 sm:p-8 overflow-y-auto">
-        <div className="w-full max-w-md py-8">
-          <Link to="/" className="flex items-center gap-2 mb-8">
-            <span className="text-2xl font-black tracking-[4px] gradient-text">KALMORI</span>
-          </Link>
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-5 text-sm text-left" data-testid="register-error">
+            {error}
+          </div>
+        )}
 
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Create account</h1>
-          <p className="text-gray-400 mb-6">Start distributing your music today</p>
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-5 text-sm" data-testid="register-error">
-              {error}
-            </div>
-          )}
-
+        {/* Dark card container */}
+        <div className="bg-[#0d0d0d] border border-gray-800 rounded-xl p-6 sm:p-8 text-left">
           {/* Role Toggle */}
-          <div className="mb-6">
-            <Label className="text-white mb-3 block text-sm">I am a</Label>
+          <div className="mb-5">
+            <label className="block text-gray-400 text-sm mb-2">I am a</label>
             <div className="flex gap-3">
               {['artist', 'producer'].map((role) => (
                 <button
-                  key={role}
-                  type="button"
-                  onClick={() => setUserRole(role)}
-                  className={`flex-1 py-3 rounded-full text-sm font-bold tracking-[1px] uppercase transition-all ${
+                  key={role} type="button" onClick={() => setUserRole(role)}
+                  className={`flex-1 py-2.5 rounded-full text-sm font-bold tracking-[1px] uppercase transition-all ${
                     userRole === role
-                      ? 'bg-[#E040FB] text-white shadow-lg shadow-[#E040FB]/20'
-                      : 'bg-[#111] border border-white/10 text-gray-400 hover:border-white/30'
+                      ? 'bg-[#E040FB] text-white'
+                      : 'bg-transparent border border-gray-600 text-gray-400 hover:border-gray-400'
                   }`}
                   data-testid={`role-${role}-btn`}
                 >
@@ -139,77 +131,92 @@ const RegisterPage = () => {
           </div>
 
           <form onSubmit={handleRegister} className="space-y-4">
-            {/* Legal Name & Stage Name */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="legalName" className="text-white mb-1.5 block text-sm">Legal Name *</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <Input
-                    id="legalName" value={legalName} onChange={(e) => setLegalName(e.target.value)}
-                    placeholder="Full legal name"
-                    className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 h-11"
-                    required data-testid="register-legal-name"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="stageName" className="text-white mb-1.5 block text-sm">Stage Name</Label>
-                <div className="relative">
-                  <MusicNotes className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <Input
-                    id="stageName" value={stageName} onChange={(e) => setStageName(e.target.value)}
-                    placeholder="Artist / producer name"
-                    className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 h-11"
-                    data-testid="register-stage-name"
-                  />
-                </div>
-              </div>
+            {/* Name */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-1.5">Name *</label>
+              <input
+                type="text" value={legalName} onChange={(e) => setLegalName(e.target.value)}
+                className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors"
+                required data-testid="register-legal-name"
+              />
+            </div>
+
+            {/* Stage Name */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-1.5">Stage / Artist Name</label>
+              <input
+                type="text" value={stageName} onChange={(e) => setStageName(e.target.value)}
+                className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors"
+                data-testid="register-stage-name"
+              />
             </div>
 
             {/* Email */}
             <div>
-              <Label htmlFor="email" className="text-white mb-1.5 block text-sm">Email *</Label>
+              <label className="block text-gray-400 text-sm mb-1.5">Email Address *</label>
+              <input
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors"
+                required data-testid="register-email-input"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-1.5">Password *</label>
               <div className="relative">
-                <Envelope className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <Input
-                  id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="artist@example.com"
-                  className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 h-11"
-                  required data-testid="register-email-input"
+                <input
+                  type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors pr-10"
+                  required data-testid="register-password-input"
                 />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                  data-testid="toggle-password-visibility"
+                >
+                  {showPassword ? <EyeSlash className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
+              <p className="text-gray-600 text-xs mt-1.5 leading-relaxed">
+                Password must be at least 8 characters long and contain at least 1 upper case letter, 1 number, and one of these special characters: !&quot;#$%&amp;'()*+,-./:;&lt;=&gt;?@[\]^_`{'{|}'}~
+              </p>
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-1.5">Confirm Password *</label>
+              <input
+                type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors"
+                required data-testid="register-confirm-password-input"
+              />
             </div>
 
             {/* Country Picker */}
             <div className="relative">
-              <Label htmlFor="country" className="text-white mb-1.5 block text-sm">Country</Label>
+              <label className="block text-gray-400 text-sm mb-1.5">Country/Territory</label>
               <button
-                type="button"
-                onClick={() => setShowCountryPicker(!showCountryPicker)}
-                className="w-full flex items-center gap-3 bg-[#111] border border-white/10 rounded-md px-3 h-11 text-left hover:border-white/20 transition-colors"
+                type="button" onClick={() => setShowCountryPicker(!showCountryPicker)}
+                className="w-full flex items-center justify-between bg-transparent border border-gray-600 rounded px-4 py-3 text-left hover:border-gray-400 transition-colors"
                 data-testid="register-country-picker"
               >
-                <Flag className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                <span className={`flex-1 text-sm ${country ? 'text-white' : 'text-gray-500'}`}>
-                  {country || 'Select your country'}
+                <span className={`text-sm ${country ? 'text-white' : 'text-gray-500'}`}>
+                  {country || 'Choose Country/Territory'}
                 </span>
                 <CaretDown className={`w-4 h-4 text-gray-500 transition-transform ${showCountryPicker ? 'rotate-180' : ''}`} />
               </button>
 
               {showCountryPicker && (
-                <div className="absolute z-50 mt-1 w-full bg-[#111] border border-white/10 rounded-lg shadow-2xl max-h-60 overflow-hidden">
-                  <div className="p-2 border-b border-white/10">
-                    <Input
+                <div className="absolute z-50 mt-1 w-full bg-[#111] border border-gray-700 rounded-lg shadow-2xl max-h-56 overflow-hidden">
+                  <div className="p-2 border-b border-gray-700">
+                    <input
                       placeholder="Search country..."
-                      value={countrySearch}
-                      onChange={(e) => setCountrySearch(e.target.value)}
-                      className="bg-[#0a0a0a] border-white/10 text-white placeholder:text-gray-500 h-9 text-sm"
-                      autoFocus
-                      data-testid="country-search-input"
+                      value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)}
+                      className="w-full bg-[#0a0a0a] border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#E040FB]"
+                      autoFocus data-testid="country-search-input"
                     />
                   </div>
-                  <div className="overflow-y-auto max-h-48">
+                  <div className="overflow-y-auto max-h-44">
                     {filteredCountries.map((c) => (
                       <button
                         key={c} type="button"
@@ -229,119 +236,83 @@ const RegisterPage = () => {
               )}
             </div>
 
-            {/* State & Town */}
+            {/* State & Town - side by side */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="state" className="text-white mb-1.5 block text-sm">State / Province</Label>
-                <div className="relative">
-                  <Buildings className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <Input
-                    id="state" value={state} onChange={(e) => setState(e.target.value)}
-                    placeholder="State"
-                    className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 h-11"
-                    data-testid="register-state"
-                  />
-                </div>
+                <label className="block text-gray-400 text-sm mb-1.5">State / Province</label>
+                <input
+                  type="text" value={state} onChange={(e) => setState(e.target.value)}
+                  className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors"
+                  data-testid="register-state"
+                />
               </div>
               <div>
-                <Label htmlFor="town" className="text-white mb-1.5 block text-sm">Town / City</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <Input
-                    id="town" value={town} onChange={(e) => setTown(e.target.value)}
-                    placeholder="City"
-                    className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 h-11"
-                    data-testid="register-town"
-                  />
-                </div>
+                <label className="block text-gray-400 text-sm mb-1.5">Town / City</label>
+                <input
+                  type="text" value={town} onChange={(e) => setTown(e.target.value)}
+                  className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors"
+                  data-testid="register-town"
+                />
               </div>
             </div>
 
             {/* Post Code */}
             <div>
-              <Label htmlFor="postCode" className="text-white mb-1.5 block text-sm">Post Code / ZIP</Label>
-              <div className="relative">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <Input
-                  id="postCode" value={postCode} onChange={(e) => setPostCode(e.target.value)}
-                  placeholder="12345"
-                  className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 h-11"
-                  data-testid="register-postcode"
-                />
-              </div>
+              <label className="block text-gray-400 text-sm mb-1.5">Post Code / ZIP</label>
+              <input
+                type="text" value={postCode} onChange={(e) => setPostCode(e.target.value)}
+                className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors"
+                data-testid="register-postcode"
+              />
             </div>
 
-            {/* Password with show/hide */}
-            <div>
-              <Label htmlFor="password" className="text-white mb-1.5 block text-sm">Password *</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <Input
-                  id="password" type={showPassword ? 'text' : 'password'}
-                  value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 6 characters"
-                  className="pl-10 pr-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 h-11"
-                  required data-testid="register-password-input"
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                  data-testid="toggle-password-visibility"
-                >
-                  {showPassword ? <EyeSlash className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
+            {/* Terms checkbox */}
+            <div className="flex items-start gap-3 pt-1">
+              <button
+                type="button" onClick={() => setAgreedToTerms(!agreedToTerms)}
+                className={`w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
+                  agreedToTerms ? 'bg-[#E040FB] border-[#E040FB]' : 'border-gray-600 hover:border-gray-400'
+                }`}
+                data-testid="terms-checkbox"
+              >
+                {agreedToTerms && <Check className="w-3.5 h-3.5 text-white" weight="bold" />}
+              </button>
+              <span className="text-sm text-gray-400">
+                I Agree to the Kalmori{' '}
+                <Link to="/terms" className="text-[#E040FB] hover:underline">Terms & Conditions</Link>
+              </span>
             </div>
 
-            {/* Confirm Password */}
-            <div>
-              <Label htmlFor="confirmPassword" className="text-white mb-1.5 block text-sm">Confirm Password *</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <Input
-                  id="confirmPassword" type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm password"
-                  className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 h-11"
-                  required data-testid="register-confirm-password-input"
-                />
-              </div>
+            {/* Submit */}
+            <div className="flex justify-center pt-2">
+              <button
+                type="submit" disabled={loading}
+                className="bg-[#E040FB] hover:brightness-110 text-white text-sm font-bold tracking-[1.5px] uppercase px-12 py-3 rounded-full transition-all min-w-[140px]"
+                data-testid="register-submit-btn"
+              >
+                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" /> : 'SIGN UP'}
+              </button>
             </div>
-
-            <button
-              type="submit" disabled={loading}
-              className="w-full bg-[#E040FB] hover:brightness-110 py-3.5 rounded-full text-white font-bold tracking-[1px] flex items-center justify-center gap-2 transition-all mt-2"
-              data-testid="register-submit-btn"
-            >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>Create Account <ArrowRight className="w-4 h-4" /></>
-              )}
-            </button>
           </form>
-
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
-            <div className="relative flex justify-center"><span className="px-4 bg-black text-sm text-gray-500">or</span></div>
-          </div>
-
-          <button type="button" onClick={handleGoogleLogin}
-            className="w-full border-2 border-white/10 hover:bg-white/5 text-white py-3.5 rounded-full flex items-center justify-center gap-2 transition-all font-bold"
-            data-testid="google-register-btn"
-          >
-            <GoogleLogo className="w-5 h-5" weight="bold" /> Continue with Google
-          </button>
-
-          <p className="mt-5 text-center text-sm text-gray-400">
-            Already have an account? <Link to="/login" className="text-[#7C4DFF] hover:underline" data-testid="login-link">Sign in</Link>
-          </p>
-
-          <p className="mt-3 text-center text-xs text-gray-600">
-            By creating an account you agree to our{' '}
-            <Link to="/terms" className="text-gray-500 hover:text-gray-400 underline">Terms</Link> and{' '}
-            <Link to="/privacy" className="text-gray-500 hover:text-gray-400 underline">Privacy Policy</Link>
-          </p>
         </div>
+
+        <p className="mt-5 text-sm text-gray-400">
+          Already have an account?{' '}
+          <Link to="/login" className="text-[#E040FB] hover:underline" data-testid="login-link">Login</Link>
+        </p>
+
+        {/* Divider */}
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800" /></div>
+          <div className="relative flex justify-center"><span className="px-4 bg-black text-xs text-gray-500">or</span></div>
+        </div>
+
+        <button type="button" onClick={handleGoogleLogin}
+          className="w-full max-w-[460px] border border-gray-700 hover:border-gray-500 text-white py-3 rounded-full flex items-center justify-center gap-2 transition-all text-sm font-medium"
+          data-testid="google-register-btn"
+        >
+          <GoogleLogo className="w-5 h-5" weight="bold" /> Continue with Google
+        </button>
       </div>
     </div>
   );

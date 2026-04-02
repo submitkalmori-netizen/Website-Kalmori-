@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { MusicNotes, GoogleLogo, Envelope, Lock, ArrowRight } from '@phosphor-icons/react';
+import { GoogleLogo, Eye, EyeSlash } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
@@ -38,60 +36,88 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black flex">
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md">
-          <Link to="/" className="flex items-center gap-2 mb-12">
-            <span className="text-2xl font-black tracking-[4px] gradient-text">KALMORI</span>
-          </Link>
+    <div className="min-h-screen relative flex items-center justify-center">
+      {/* Background image with dark overlay */}
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.pexels.com/photos/1644616/pexels-photo-1644616.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260)' }} />
+      <div className="absolute inset-0 bg-black/80" />
 
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Welcome back</h1>
-          <p className="text-gray-400 mb-8">Sign in to manage your releases</p>
+      {/* Form */}
+      <div className="relative z-10 w-full max-w-[420px] mx-auto px-6 py-12 text-center">
+        {/* Logo */}
+        <Link to="/" className="inline-block mb-10">
+          <span className="text-3xl font-black tracking-[6px]" style={{ color: '#E040FB', textShadow: '0 0 20px rgba(224,64,251,0.3)' }}>
+            KALMORI
+          </span>
+        </Link>
 
-          {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-6 text-sm">{error}</div>}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-6 text-sm text-left" data-testid="login-error">
+            {error}
+          </div>
+        )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <Label htmlFor="email" className="text-white mb-2 block">Email</Label>
-              <div className="relative">
-                <Envelope className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="artist@example.com" className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 focus:border-[#7C4DFF]" required data-testid="login-email-input" />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="password" className="text-white mb-2 block">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className="pl-10 bg-[#111] border-white/10 text-white placeholder:text-gray-500 focus:border-[#7C4DFF]" required data-testid="login-password-input" />
-              </div>
-            </div>
-
-            <button type="submit" disabled={loading} className="w-full bg-[#E040FB] hover:brightness-110 py-3.5 rounded-full text-white font-bold tracking-[1px] flex items-center justify-center gap-2 transition-all" data-testid="login-submit-btn">
-              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <>Sign In <ArrowRight className="w-4 h-4" /></>}
-            </button>
-          </form>
-
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
-            <div className="relative flex justify-center"><span className="px-4 bg-black text-sm text-gray-500">or continue with</span></div>
+        <form onSubmit={handleLogin} className="space-y-5 text-left">
+          <div>
+            <label className="block text-gray-400 text-sm mb-1.5">Email Address</label>
+            <input
+              type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors"
+              required data-testid="login-email-input"
+            />
           </div>
 
-          <button type="button" onClick={handleGoogleLogin} className="w-full border-2 border-white/10 hover:bg-white/5 text-white py-3.5 rounded-full flex items-center justify-center gap-2 transition-all font-bold" data-testid="google-login-btn">
-            <GoogleLogo className="w-5 h-5" weight="bold" /> Continue with Google
-          </button>
+          <div>
+            <label className="block text-gray-400 text-sm mb-1.5">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors pr-10"
+                required data-testid="login-password-input"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                data-testid="toggle-password-visibility"
+              >
+                {showPassword ? <EyeSlash className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
 
-          <p className="mt-8 text-center text-sm text-gray-400">
-            Don't have an account? <Link to="/register" className="text-[#7C4DFF] hover:underline" data-testid="signup-link">Sign up</Link>
-          </p>
-          <p className="mt-3 text-center">
-            <Link to="/forgot-password" className="text-sm text-gray-500 hover:text-[#E040FB] transition-colors" data-testid="forgot-password-link">Forgot your password?</Link>
-          </p>
+          <div className="flex justify-center pt-2">
+            <button
+              type="submit" disabled={loading}
+              className="bg-[#E040FB] hover:brightness-110 text-white text-sm font-bold tracking-[1.5px] uppercase px-10 py-3 rounded-full transition-all min-w-[140px]"
+              data-testid="login-submit-btn"
+            >
+              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" /> : 'LOG IN'}
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-5">
+          <Link to="/forgot-password" className="text-sm text-gray-400 hover:text-[#E040FB] underline transition-colors" data-testid="forgot-password-link">
+            Forgot your password?
+          </Link>
         </div>
-      </div>
 
-      <div className="hidden lg:block lg:w-1/2 bg-cover bg-center" style={{ backgroundImage: 'url(https://images.pexels.com/photos/1644616/pexels-photo-1644616.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260)' }}>
-        <div className="h-full w-full bg-gradient-to-r from-black to-transparent" />
+        <div className="mt-4">
+          <Link to="/register" className="text-sm text-[#E040FB] hover:brightness-125 transition-colors" data-testid="signup-link">
+            I need an account
+          </Link>
+        </div>
+
+        {/* Divider */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700" /></div>
+          <div className="relative flex justify-center"><span className="px-4 bg-black/50 text-xs text-gray-500 backdrop-blur-sm">or</span></div>
+        </div>
+
+        <button type="button" onClick={handleGoogleLogin}
+          className="w-full border border-gray-600 hover:border-gray-400 text-white py-3 rounded-full flex items-center justify-center gap-2 transition-all text-sm font-medium"
+          data-testid="google-login-btn"
+        >
+          <GoogleLogo className="w-5 h-5" weight="bold" /> Continue with Google
+        </button>
       </div>
     </div>
   );
