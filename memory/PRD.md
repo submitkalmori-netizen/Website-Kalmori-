@@ -89,6 +89,14 @@ Frontend: React + Tailwind + Shadcn/UI | Backend: FastAPI + Motor + MongoDB | Au
 - [x] How-it-works explainer
 - [x] Content ID management page
 
+### Admin Beat Manager [Apr 2, 2026]
+- [x] Admin Beat Manager page at /admin/beats with full CRUD
+- [x] Create/edit beats with title, genre, BPM, key, mood, pricing modal
+- [x] Upload audio files and cover art per beat via Object Storage
+- [x] Play count tracking, audio/cover upload status indicators
+- [x] Delete beats with confirmation
+- [x] Non-admin users redirected to dashboard
+
 ### Beat Catalog API [Apr 2, 2026]
 - [x] Full CRUD beats API (/api/beats) with Object Storage audio uploads
 - [x] Instrumentals page fetches real beats from database
