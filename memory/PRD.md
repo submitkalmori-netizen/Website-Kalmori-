@@ -17,63 +17,63 @@ A TuneCore clone / high-volume digital content aggregator and B2B e-commerce pla
 /app/
 ├── backend/
 │   ├── server.py          # Main backend (auth, releases, tracks, admin, wallet, AI, etc.)
-│   ├── kalmori_routes.py  # GitHub-merged routes (CMS, Cart, Credits, Social, Testimonials, etc.)
+│   ├── kalmori_routes.py  # GitHub-merged routes (CMS, Cart, Credits, Social, Stats, Genres, etc.)
+│   ├── tests/             # Pytest tests (iteration 9: 28 tests)
 │   ├── requirements.txt
 │   └── .env
 ├── frontend/
 │   ├── src/
-│   │   ├── App.js         # Routes, AuthContext (Bearer+cookie dual auth), CartProvider
-│   │   ├── services/api.js # Centralized API service (mirrors mobile app pattern)
-│   │   ├── context/CartContext.jsx # Cart state management
-│   │   ├── components/    # PublicLayout, AdminLayout, DashboardLayout, GlobalFooter
-│   │   └── pages/         # 15+ pages (Landing, Pricing, Services, Admin, Dashboard, etc.)
+│   │   ├── App.js                    # Routes, AuthContext, CartProvider
+│   │   ├── services/api.js           # Exact port of GitHub api.ts (all endpoint methods)
+│   │   ├── context/CartContext.jsx    # Cart state management
+│   │   ├── components/               # PublicLayout, AdminLayout, DashboardLayout, GlobalFooter
+│   │   └── pages/                    # 15+ pages
 │   └── .env
 └── memory/ (PRD.md, test_credentials.md)
 ```
 
 ## Completed Features
 
-### Frontend (All pages pixel-perfect clone of Kalmori app)
-- [x] Landing Page with slideshow hero, typewriter animation, platform logos
-- [x] Pricing, Services, Stores, Contact, About, Promoting, Publishing pages
-- [x] Leasing/Instrumentals page
-- [x] Privacy Policy & Terms pages
+### Frontend
+- [x] Landing Page, Pricing, Services, Stores, Contact, About, Promoting, Publishing, Instrumentals, Terms, Privacy
 - [x] PublicLayout with slide-out menu matching Kalmori exactly
-- [x] Admin Dashboard UI with routing
-- [x] User Dashboard with stats, charts, recent releases
-- [x] Auth pages (Login/Register)
-- [x] **API Service** (`services/api.js`) - Centralized endpoint definitions matching mobile app [Apr 2, 2026]
+- [x] Admin Dashboard, User Dashboard, Auth pages
+- [x] **API Service** (`services/api.js`) - Exact 1:1 port of GitHub `api.ts` [Apr 2, 2026]
 - [x] **AuthContext** - Bearer token + localStorage + 30min inactivity timeout [Apr 2, 2026]
-- [x] **CartContext** - Cart state management with add/remove/update/checkout [Apr 2, 2026]
+- [x] **CartContext** - Cart state management [Apr 2, 2026]
 
 ### Backend - Core (server.py)
-- [x] Dual auth: JWT cookies + Bearer token (register/login return {access_token, user})
-- [x] Extended UserCreate with user_role, country, state, town, post_code fields
-- [x] Google OAuth via Emergent Integrations
-- [x] Release CRUD, Track CRUD with audio upload
-- [x] Distribution, Payments (Stripe), Wallet, Analytics, AI features
-- [x] Notifications, Subscriptions, Admin dashboard
-- [x] Ingestion/Review engine, Split payments, File serving
+- [x] Dual auth (cookies + Bearer), Extended UserCreate fields
+- [x] Release/Track CRUD, Distribution, Payments, Wallet, Analytics, AI features
+- [x] Notifications, Subscriptions, Admin dashboard, Ingestion/Review, Split payments
 
-### Backend - Kalmori GitHub Merge (kalmori_routes.py) [Apr 2, 2026]
-- [x] CMS system (slides, pricing, legal, full page editor, instrumentals)
-- [x] Shopping Cart, Credits, Payment Methods, Extended Wallet/Withdrawals
-- [x] Social features (follow/unfollow), Testimonials, Theme settings
-- [x] Promotion Orders, Instrumental Requests
-- [x] Analytics chart data, Public releases, Video serving, reCAPTCHA
+### Backend - Kalmori Routes (kalmori_routes.py)
+- [x] CMS (slides, pricing, legal, full pages, instrumentals)
+- [x] Shopping Cart (CRUD + Stripe checkout)
+- [x] Credits system, Payment Methods (with set-default), Extended Wallet/Withdrawals
+- [x] Social features (follow/unfollow, followers/following lists)
+- [x] Testimonials, Theme, Promotion Orders, Instrumental Requests
+- [x] **Stats endpoint** (`/api/stats`) [Apr 2, 2026]
+- [x] **Genres endpoint** (`/api/genres`) [Apr 2, 2026]
+- [x] **Transactions endpoint** (`/api/transactions`) [Apr 2, 2026]
+- [x] **Set-default payment method** (`/api/payment-methods/{id}/set-default`) [Apr 2, 2026]
+- [x] **Streaming analytics** (`/api/analytics/streaming/{userId}`) [Apr 2, 2026]
+- [x] **Followers/Following lists** (`/api/artists/{id}/followers`, `/following`) [Apr 2, 2026]
+- [x] **Withdrawals v2** (`/api/withdrawals` POST/GET) [Apr 2, 2026]
+- [x] Public releases, Video serving, reCAPTCHA
 
 ## Upcoming Tasks (P1)
-- [ ] AI Features integration (metadata generation, analytics summaries) using Emergent LLM Key
-- [ ] Advanced Analytics Dashboard (Audience Map, TikTok UGC trends)
-- [ ] Email notifications & password reset workflows
+- [ ] AI Features integration using Emergent LLM Key
+- [ ] Advanced Analytics Dashboard (Audience Map, TikTok UGC)
+- [ ] Email notifications & password reset
 - [ ] PayPal payment integration
 
 ## Future Tasks (P2)
-- [ ] Beat audio previews on the Leasing page
-- [ ] Backend modularization (split server.py into distinct router files)
+- [ ] Beat audio previews on Leasing page
+- [ ] Backend modularization
 - [ ] YouTube Content ID / Spotify Canvas
-- [ ] Video file uploads
 
 ## Testing
-- iteration_7.json: 100% pass (27/27 backend + frontend) - Kalmori routes merge
-- iteration_8.json: 100% pass (16/16 backend + frontend) - Auth & service layer
+- iteration_7: 100% (27/27) - Kalmori routes merge
+- iteration_8: 100% (16/16) - Auth & service layer
+- iteration_9: 100% (28/28) - api.ts port + new endpoints

@@ -1345,3 +1345,158 @@ function onError(){{document.getElementById('error').textContent='Error. Try aga
 @kalmori_router.get("/kalmori-info")
 async def kalmori_root():
     return {"message": "Kalmori Music Distribution API", "version": "2.0.0"}
+
+# ==================== STATS & GENRES ====================
+
+@kalmori_router.get("/stats")
+async def get_stats(request: Request):
+    current_user = await _get_current_user_flexible(request)
+    releases_count = await db.releases.count_documents({"artist_id": current_user["id"]})
+    tracks_count = await db.tracks.count_documents({"artist_id": current_user["id"]})
+    wallet = await db.wallets.find_one({"user_id": current_user["id"]})
+    total_earnings = wallet.get("total_earned", wallet.get("total_earnings", 0.0)) if wallet else 0.0
+    follower_count = await db.followers.count_documents({"following_id": current_user["id"]})
+    return {
+        "total_releases": releases_count,
+        "total_tracks": tracks_count,
+        "total_earnings": total_earnings,
+        "total_streams": 0,
+        "total_downloads": 0,
+        "follower_count": follower_count
+    }
+
+@kalmori_router.get("/genres")
+async def get_genres():
+    return [
+        "Hip-Hop/Rap", "R&B/Soul", "Pop", "Rock", "Electronic", "Jazz",
+        "Classical", "Country", "Reggae", "Afrobeats", "Latin", "Dancehall",
+        "Gospel", "Blues", "Folk", "Indie", "Metal", "Punk", "Alternative",
+        "World", "Soundtrack", "Ambient", "Lo-fi", "Trap", "Drill", "Grime"
+    ]
+
+# ==================== TRANSACTIONS ====================
+
+@kalmori_router.get("/transactions")
+async def get_transactions(request: Request):
+    current_user = await _get_current_user_flexible(request)
+    transactions = await db.transactions.find(
+        {"user_id": current_user["id"]}
+    ).sort("created_at", -1).to_list(100)
+    for t in transactions:
+        t.pop("_id", None)
+    return transactions
+
+# ==================== SET DEFAULT PAYMENT METHOD ====================
+
+@kalmori_router.put("/payment-methods/{method_id}/set-default")
+async def set_default_payment_method(method_id: str, request: Request):
+    current_user = await _get_current_user_flexible(request)
+    method = await db.payment_methods.find_one({"id": method_id, "user_id": current_user["id"]})
+    if not method:
+        raise HTTPException(status_code=404, detail="Payment method not found")
+    await db.payment_methods.update_many(
+        {"user_id": current_user["id"]}, {"$set": {"is_default": False}}
+    )
+    await db.payment_methods.update_one(
+        {"id": method_id}, {"$set": {"is_default": True}}
+    )
+    return {"message": "Default payment method updated"}
+
+# ==================== STREAMING ANALYTICS ====================
+
+@kalmori_router.get("/analytics/streaming/{user_id}")
+async def get_streaming_analytics(user_id: str, request: Request):
+    await _get_current_user_flexible(request)
+    releases = await db.releases.find({"artist_id": user_id}).to_list(100)
+    total_streams = sum(r.get("total_streams", 0) for r in releases)
+    total_revenue = sum(r.get("total_revenue", 0.0) for r in releases)
+    platforms = [
+        {"name": "Spotify", "streams": 0, "revenue": 0.0, "color": "#1DB954"},
+        {"name": "Apple Music", "streams": 0, "revenue": 0.0, "color": "#FC3C44"},
+        {"name": "YouTube Music", "streams": 0, "revenue": 0.0, "color": "#FF0000"},
+        {"name": "Amazon Music", "streams": 0, "revenue": 0.0, "color": "#FF9900"},
+        {"name": "TikTok", "streams": 0, "revenue": 0.0, "color": "#010101"},
+        {"name": "Tidal", "streams": 0, "revenue": 0.0, "color": "#00FFFF"}
+    ]
+    return {
+        "total_streams": total_streams,
+        "total_revenue": total_revenue,
+        "platforms": platforms,
+        "top_tracks": [],
+        "monthly_data": []
+    }
+
+# ==================== FOLLOWERS & FOLLOWING LISTS ====================
+
+@kalmori_router.get("/artists/{artist_id}/followers")
+async def get_followers_list(artist_id: str):
+    followers = await db.followers.find({"following_id": artist_id}).sort("created_at", -1).to_list(100)
+    result = []
+    for f in followers:
+        user = await db.users.find_one({"id": f["follower_id"]})
+        if user:
+            result.append({
+                "id": user["id"],
+                "name": user.get("name", ""),
+                "artist_name": user.get("artist_name", ""),
+                "avatar_url": user.get("avatar_url"),
+                "followed_at": f.get("created_at")
+            })
+    return result
+
+@kalmori_router.get("/artists/{artist_id}/following")
+async def get_following_list(artist_id: str):
+    following = await db.followers.find({"follower_id": artist_id}).sort("created_at", -1).to_list(100)
+    result = []
+    for f in following:
+        user = await db.users.find_one({"id": f["following_id"]})
+        if user:
+            result.append({
+                "id": user["id"],
+                "name": user.get("name", ""),
+                "artist_name": user.get("artist_name", ""),
+                "avatar_url": user.get("avatar_url"),
+                "followed_at": f.get("created_at")
+            })
+    return result
+
+# ==================== WITHDRAWALS (matching api.ts path) ====================
+
+@kalmori_router.post("/withdrawals")
+async def request_withdrawal_v2(request: Request):
+    current_user = await _get_current_user_flexible(request)
+    body = await request.json()
+    amount = body.get("amount", 0)
+    payment_method_id = body.get("payment_method_id")
+    if not payment_method_id:
+        raise HTTPException(status_code=400, detail="Payment method ID required")
+    payment_method = await db.payment_methods.find_one({"id": payment_method_id, "user_id": current_user["id"]})
+    if not payment_method:
+        raise HTTPException(status_code=404, detail="Payment method not found")
+    wallet = await db.wallets.find_one({"user_id": current_user["id"]})
+    avail = wallet.get("available_balance", wallet.get("balance", 0)) if wallet else 0
+    if not wallet or avail < amount:
+        raise HTTPException(status_code=400, detail="Insufficient balance")
+    if amount < 10:
+        raise HTTPException(status_code=400, detail="Minimum withdrawal is $10")
+    withdrawal_id = str(uuid.uuid4())
+    withdrawal = {
+        "id": withdrawal_id, "user_id": current_user["id"], "amount": amount,
+        "payment_method_id": payment_method_id, "payment_method_type": payment_method["method_type"],
+        "status": "pending", "created_at": datetime.now(timezone.utc), "processed_at": None
+    }
+    await db.withdrawals.insert_one(withdrawal)
+    await db.wallets.update_one(
+        {"user_id": current_user["id"]},
+        {"$inc": {"available_balance": -amount, "pending_balance": amount}}
+    )
+    withdrawal.pop("_id", None)
+    return withdrawal
+
+@kalmori_router.get("/withdrawals")
+async def get_withdrawals_v2(request: Request):
+    current_user = await _get_current_user_flexible(request)
+    withdrawals = await db.withdrawals.find({"user_id": current_user["id"]}).sort("created_at", -1).to_list(50)
+    for w in withdrawals:
+        w.pop("_id", None)
+    return withdrawals
