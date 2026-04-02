@@ -117,3 +117,4 @@ Landing, Login, Register, ResetPassword, Dashboard, Releases, ReleaseDetail, Cre
 - iteration_8: 100% (16/16) - Auth & service layer
 - iteration_9: 100% (28/28) - api.ts port
 - iteration_10: 93% backend + 100% frontend - All new features
+- iteration_11: 100% (11/11) backend + 100% frontend - Back buttons, Object Storage, Stripe verified
