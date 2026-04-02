@@ -40,6 +40,7 @@ import SpotifyCanvasPage from './pages/SpotifyCanvasPage';
 import ContentIdPage from './pages/ContentIdPage';
 import MyPurchasesPage from './pages/MyPurchasesPage';
 import CollaborationsPage from './pages/CollaborationsPage';
+import PreSaveManagerPage, { PreSaveLandingPage } from './pages/PreSavePage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -263,6 +264,8 @@ const AppRouter = () => {
       <Route path="/content-id" element={<ProtectedRoute><ContentIdPage /></ProtectedRoute>} />
       <Route path="/purchases" element={<ProtectedRoute><MyPurchasesPage /></ProtectedRoute>} />
       <Route path="/collaborations" element={<ProtectedRoute><CollaborationsPage /></ProtectedRoute>} />
+      <Route path="/presave-manager" element={<ProtectedRoute><PreSaveManagerPage /></ProtectedRoute>} />
+      <Route path="/presave/:campaignId" element={<PreSaveLandingPage />} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/submissions" element={<AdminRoute><AdminSubmissionsPage /></AdminRoute>} />

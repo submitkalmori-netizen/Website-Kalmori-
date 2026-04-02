@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import PublicLayout from '../components/PublicLayout';
 import GlobalFooter from '../components/GlobalFooter';
 import { useAuth } from '../App';
-import { MusicNote, Lightning, ShieldCheck, Headset, Check, Star, PaperPlaneTilt, Play, Pause, SpeakerHigh, ShoppingCart } from '@phosphor-icons/react';
+import { MusicNote, Lightning, ShieldCheck, Headset, Check, Star, PaperPlaneTilt, Play, Pause, SpeakerHigh, ShoppingCart, MagnifyingGlass, Sliders, X, ShareNetwork, Copy } from '@phosphor-icons/react';
 import axios from 'axios';
 import { toast } from 'sonner';
 
@@ -69,7 +69,15 @@ export default function InstrumentalsPage() {
   const [beats, setBeats] = useState([]);
   const [loadingBeats, setLoadingBeats] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterKey, setFilterKey] = useState('');
+  const [bpmRange, setBpmRange] = useState([60, 200]);
+  const [sortBy, setSortBy] = useState('newest');
+  const [showFilters, setShowFilters] = useState(false);
   const audioRef = useRef(null);
+  const searchTimeout = useRef(null);
+
+  const KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'A#m', 'Bm'];
 
   useEffect(() => {
     fetchBeats();
@@ -98,15 +106,43 @@ export default function InstrumentalsPage() {
     } finally { setPurchasing(false); }
   };
 
-  const fetchBeats = async () => {
+  const fetchBeats = async (params = {}) => {
     try {
-      const res = await axios.get(`${API_URL}/api/beats`);
+      const queryParams = new URLSearchParams();
+      if (params.search || searchQuery) queryParams.set('search', params.search || searchQuery);
+      if (params.genre || selectedGenre) queryParams.set('genre', params.genre || selectedGenre);
+      if (params.mood || selectedMood) queryParams.set('mood', params.mood || selectedMood);
+      if (params.key || filterKey) queryParams.set('key', params.key || filterKey);
+      if (bpmRange[0] > 60) queryParams.set('bpm_min', bpmRange[0]);
+      if (bpmRange[1] < 200) queryParams.set('bpm_max', bpmRange[1]);
+      if (sortBy !== 'newest') queryParams.set('sort_by', sortBy);
+      const qs = queryParams.toString();
+      const res = await axios.get(`${API_URL}/api/beats${qs ? '?' + qs : ''}`);
       setBeats(res.data.beats || []);
     } catch (err) {
       console.error('Failed to fetch beats:', err);
     } finally {
       setLoadingBeats(false);
     }
+  };
+
+  const handleSearchChange = (val) => {
+    setSearchQuery(val);
+    clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => fetchBeats({ search: val }), 300);
+  };
+
+  const applyFilters = () => { setLoadingBeats(true); fetchBeats(); };
+
+  const clearFilters = () => {
+    setSearchQuery(''); setSelectedGenre(''); setSelectedMood(''); setFilterKey('');
+    setBpmRange([60, 200]); setSortBy('newest'); setShowFilters(false);
+    setLoadingBeats(true); fetchBeats({ search: '', genre: '', mood: '', key: '' });
+  };
+
+  const sharebeat = (beat) => {
+    const url = `${window.location.origin}/instrumentals?beat=${beat.id}`;
+    navigator.clipboard.writeText(url).then(() => toast.success('Beat link copied!'));
   };
 
   const toggleBeat = (beat) => {
@@ -224,6 +260,89 @@ export default function InstrumentalsPage() {
         <div className="p-6">
           <h2 className="text-sm font-bold text-[#E040FB] tracking-[3px] text-center mb-2">BEAT CATALOG</h2>
           <p className="text-sm text-gray-400 text-center mb-6">Preview our latest beats — tap to play</p>
+
+          {/* Search & Filter Bar */}
+          <div className="space-y-3 mb-6">
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input type="text" value={searchQuery} onChange={e => handleSearchChange(e.target.value)}
+                  placeholder="Search beats by name, genre, mood..."
+                  className="w-full bg-[#111] border border-[#333] rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:border-[#E040FB]/50 focus:outline-none"
+                  data-testid="beat-search-input" />
+                {searchQuery && (
+                  <button onClick={() => handleSearchChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <button onClick={() => setShowFilters(!showFilters)}
+                className={`px-4 py-3 rounded-xl border text-sm font-medium flex items-center gap-2 transition-all ${showFilters ? 'bg-[#E040FB]/10 border-[#E040FB]/30 text-[#E040FB]' : 'bg-[#111] border-[#333] text-gray-400 hover:text-white'}`}
+                data-testid="toggle-filters-btn">
+                <Sliders className="w-4 h-4" /> Filters
+              </button>
+            </div>
+
+            {showFilters && (
+              <div className="bg-[#111] border border-[#333] rounded-xl p-4 space-y-4" data-testid="filters-panel">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Genre</label>
+                    <select value={selectedGenre} onChange={e => { setSelectedGenre(e.target.value); }}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm" data-testid="filter-genre">
+                      <option value="">All Genres</option>
+                      {genres.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Mood</label>
+                    <select value={selectedMood} onChange={e => { setSelectedMood(e.target.value); }}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm" data-testid="filter-mood">
+                      <option value="">All Moods</option>
+                      {moods.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Key</label>
+                    <select value={filterKey} onChange={e => setFilterKey(e.target.value)}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm" data-testid="filter-key">
+                      <option value="">All Keys</option>
+                      {KEYS.map(k => <option key={k} value={k}>{k}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Sort By</label>
+                    <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm" data-testid="filter-sort">
+                      <option value="newest">Newest First</option>
+                      <option value="price_low">Price: Low to High</option>
+                      <option value="price_high">Price: High to Low</option>
+                      <option value="bpm_low">BPM: Low to High</option>
+                      <option value="bpm_high">BPM: High to Low</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">BPM Range: {bpmRange[0]} - {bpmRange[1]}</label>
+                  <div className="flex items-center gap-3">
+                    <input type="range" min="60" max="200" value={bpmRange[0]} onChange={e => setBpmRange([parseInt(e.target.value), bpmRange[1]])}
+                      className="flex-1 accent-[#E040FB]" data-testid="bpm-min-slider" />
+                    <input type="range" min="60" max="200" value={bpmRange[1]} onChange={e => setBpmRange([bpmRange[0], parseInt(e.target.value)])}
+                      className="flex-1 accent-[#E040FB]" data-testid="bpm-max-slider" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={applyFilters} className="flex-1 py-2 rounded-lg bg-[#E040FB] text-white text-sm font-bold hover:brightness-110 transition-all" data-testid="apply-filters-btn">
+                    Apply Filters
+                  </button>
+                  <button onClick={clearFilters} className="px-4 py-2 rounded-lg bg-[#222] text-gray-400 text-sm font-medium hover:text-white transition-all" data-testid="clear-filters-btn">
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {loadingBeats ? (
             <div className="flex justify-center py-8">
               <div className="w-8 h-8 border-2 border-[#E040FB] border-t-transparent rounded-full animate-spin" />
@@ -244,6 +363,9 @@ export default function InstrumentalsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-500 hidden sm:block">{beat.duration || '--:--'}</span>
+                    <button onClick={() => sharebeat(beat)} className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-all" data-testid={`share-beat-${beat.id}`}>
+                      <ShareNetwork className="w-3.5 h-3.5" />
+                    </button>
                     <button onClick={() => { setSelectedBeat(beat); setSelectedLicense('basic_lease'); }}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[#E040FB] hover:brightness-110 text-white text-xs font-bold transition-all"
                       data-testid={`buy-beat-${beat.id}`}>

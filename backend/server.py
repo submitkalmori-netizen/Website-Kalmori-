@@ -8,6 +8,7 @@ load_dotenv()
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, File, UploadFile, Query
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
@@ -980,6 +981,166 @@ async def import_streaming_data(request: Request, file: UploadFile = File(...)):
     if events:
         await db.stream_events.insert_many(events)
     return {"message": f"Imported {len(events)} stream events from {file.filename}", "count": len(events)}
+
+
+# ============= SOCIAL SHARING =============
+@api_router.get("/share/beat/{beat_id}")
+async def get_beat_share_data(beat_id: str):
+    """Get shareable data for a beat (public, no auth)"""
+    beat = await db.beats.find_one({"id": beat_id}, {"_id": 0})
+    if not beat:
+        raise HTTPException(status_code=404, detail="Beat not found")
+    return {
+        "type": "beat",
+        "id": beat["id"],
+        "title": beat.get("title", ""),
+        "genre": beat.get("genre", ""),
+        "bpm": beat.get("bpm", 0),
+        "key": beat.get("key", ""),
+        "mood": beat.get("mood", ""),
+        "cover_url": beat.get("cover_url"),
+        "price": beat.get("prices", {}).get("basic_lease", 29.99),
+        "og_title": f"{beat.get('title', 'Beat')} | Kalmori Beats",
+        "og_description": f"{beat.get('genre', '')} beat - {beat.get('bpm', '')} BPM, Key: {beat.get('key', '')}. Starting at ${beat.get('prices', {}).get('basic_lease', 29.99)}",
+    }
+
+@api_router.get("/share/release/{release_id}")
+async def get_release_share_data(release_id: str):
+    """Get shareable data for a release (public, no auth)"""
+    release = await db.releases.find_one({"id": release_id}, {"_id": 0})
+    if not release:
+        raise HTTPException(status_code=404, detail="Release not found")
+    tracks = await db.tracks.find({"release_id": release_id}, {"_id": 0}).to_list(50)
+    artist = await db.users.find_one({"id": release.get("artist_id")}, {"_id": 0, "password_hash": 0})
+    return {
+        "type": "release",
+        "id": release["id"],
+        "title": release.get("title", ""),
+        "artist_name": artist.get("artist_name") or artist.get("name", "") if artist else "",
+        "genre": release.get("genre", ""),
+        "track_count": len(tracks),
+        "cover_url": release.get("cover_art_url"),
+        "release_date": release.get("release_date", ""),
+        "og_title": f"{release.get('title', 'Release')} by {artist.get('artist_name', '') if artist else ''} | Kalmori",
+        "og_description": f"{release.get('genre', '')} - {len(tracks)} tracks. Available on all platforms.",
+    }
+
+@api_router.get("/share/artist/{user_id}")
+async def get_artist_share_data(user_id: str):
+    """Get shareable data for an artist profile (public, no auth)"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    release_count = await db.releases.count_documents({"artist_id": user_id})
+    stream_count = await db.stream_events.count_documents({"artist_id": user_id})
+    return {
+        "type": "artist",
+        "id": user["id"],
+        "artist_name": user.get("artist_name") or user.get("name", ""),
+        "release_count": release_count,
+        "stream_count": stream_count,
+        "og_title": f"{user.get('artist_name', 'Artist')} | Kalmori",
+        "og_description": f"{release_count} releases, {stream_count:,} streams on Kalmori.",
+    }
+
+
+# ============= PRE-SAVE CAMPAIGNS =============
+class PreSaveCampaign(BaseModel):
+    release_id: str
+    title: str
+    description: str = ""
+    release_date: str
+    spotify_url: str = ""
+    apple_music_url: str = ""
+    youtube_url: str = ""
+    custom_message: str = ""
+
+@api_router.post("/presave/campaigns")
+async def create_presave_campaign(data: PreSaveCampaign, request: Request):
+    user = await get_current_user(request)
+    release = await db.releases.find_one({"id": data.release_id, "artist_id": user["id"]}, {"_id": 0})
+    if not release:
+        raise HTTPException(status_code=404, detail="Release not found")
+    now = datetime.now(timezone.utc).isoformat()
+    campaign_id = f"presave_{uuid.uuid4().hex[:12]}"
+    campaign = {
+        "id": campaign_id,
+        "release_id": data.release_id,
+        "artist_id": user["id"],
+        "artist_name": user.get("artist_name") or user.get("name", ""),
+        "title": data.title,
+        "description": data.description,
+        "release_date": data.release_date,
+        "cover_url": release.get("cover_art_url"),
+        "spotify_url": data.spotify_url,
+        "apple_music_url": data.apple_music_url,
+        "youtube_url": data.youtube_url,
+        "custom_message": data.custom_message,
+        "subscribers": [],
+        "subscriber_count": 0,
+        "status": "active",
+        "created_at": now,
+    }
+    await db.presave_campaigns.insert_one(campaign)
+    campaign.pop("_id", None)
+    return {"message": "Pre-save campaign created", "campaign": campaign}
+
+@api_router.get("/presave/campaigns")
+async def get_my_presave_campaigns(request: Request):
+    user = await get_current_user(request)
+    campaigns = await db.presave_campaigns.find({"artist_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return {"campaigns": campaigns}
+
+@api_router.get("/presave/{campaign_id}")
+async def get_presave_campaign(campaign_id: str):
+    """Public endpoint for pre-save landing page"""
+    campaign = await db.presave_campaigns.find_one({"id": campaign_id}, {"_id": 0, "subscribers": 0})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return campaign
+
+@api_router.post("/presave/{campaign_id}/subscribe")
+async def subscribe_presave(campaign_id: str, request: Request):
+    """Public endpoint — anyone can subscribe with email"""
+    body = await request.json()
+    email = body.get("email")
+    name = body.get("name", "")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    campaign = await db.presave_campaigns.find_one({"id": campaign_id})
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    existing = [s for s in campaign.get("subscribers", []) if s.get("email") == email]
+    if existing:
+        raise HTTPException(status_code=400, detail="Already subscribed")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.presave_campaigns.update_one({"id": campaign_id}, {
+        "$push": {"subscribers": {"email": email, "name": name, "subscribed_at": now}},
+        "$inc": {"subscriber_count": 1}
+    })
+    # Send confirmation email
+    try:
+        from routes.email_routes import send_email
+        await send_email(email, f"Pre-Save: {campaign.get('title', '')}",
+            f"""<div style="font-family:Arial;max-width:600px;margin:0 auto;background:#000;color:#fff;border-radius:16px;overflow:hidden;">
+            <div style="background:linear-gradient(90deg,#7C4DFF,#E040FB);padding:30px;text-align:center;">
+            <h1 style="color:white;margin:0;font-size:22px;">You're on the list!</h1></div>
+            <div style="padding:30px;">
+            <p>Hi{' ' + name if name else ''},</p>
+            <p>You've pre-saved <strong>{campaign.get('title', '')}</strong> by <strong>{campaign.get('artist_name', '')}</strong>.</p>
+            <p>We'll notify you when it drops on <strong>{campaign.get('release_date', 'TBA')}</strong>!</p>
+            </div></div>""")
+    except Exception as e:
+        logger.warning(f"Pre-save email failed: {e}")
+    return {"message": "Subscribed! We'll notify you on release day."}
+
+@api_router.delete("/presave/campaigns/{campaign_id}")
+async def delete_presave_campaign(campaign_id: str, request: Request):
+    user = await get_current_user(request)
+    result = await db.presave_campaigns.delete_one({"id": campaign_id, "artist_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    return {"message": "Campaign deleted"}
 
 
 # ============= SHARE YOUR STATS =============

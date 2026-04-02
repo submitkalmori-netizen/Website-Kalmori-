@@ -40,15 +40,61 @@ class BeatCreate(BaseModel):
 
 
 @beats_router.get("")
-async def list_beats(genre: Optional[str] = None, mood: Optional[str] = None, limit: int = 50):
+async def list_beats(
+    genre: Optional[str] = None, mood: Optional[str] = None,
+    search: Optional[str] = None, key: Optional[str] = None,
+    bpm_min: Optional[int] = None, bpm_max: Optional[int] = None,
+    price_min: Optional[float] = None, price_max: Optional[float] = None,
+    sort_by: Optional[str] = "newest",
+    limit: int = 50
+):
     query = {"status": "active"}
     if genre:
         query["genre"] = {"$regex": genre, "$options": "i"}
     if mood:
         query["mood"] = {"$regex": mood, "$options": "i"}
-    
-    beats = await db.beats.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
-    return {"beats": beats, "total": len(beats)}
+    if key:
+        query["key"] = {"$regex": f"^{key}", "$options": "i"}
+    if search:
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"genre": {"$regex": search, "$options": "i"}},
+            {"mood": {"$regex": search, "$options": "i"}},
+            {"tags": {"$regex": search, "$options": "i"}},
+        ]
+    if bpm_min is not None or bpm_max is not None:
+        bpm_q = {}
+        if bpm_min is not None:
+            bpm_q["$gte"] = bpm_min
+        if bpm_max is not None:
+            bpm_q["$lte"] = bpm_max
+        query["bpm"] = bpm_q
+    if price_min is not None or price_max is not None:
+        price_q = {}
+        if price_min is not None:
+            price_q["$gte"] = price_min
+        if price_max is not None:
+            price_q["$lte"] = price_max
+        query["prices.basic_lease"] = price_q
+
+    sort_field = "created_at"
+    sort_dir = -1
+    if sort_by == "price_low":
+        sort_field = "prices.basic_lease"
+        sort_dir = 1
+    elif sort_by == "price_high":
+        sort_field = "prices.basic_lease"
+        sort_dir = -1
+    elif sort_by == "bpm_low":
+        sort_field = "bpm"
+        sort_dir = 1
+    elif sort_by == "bpm_high":
+        sort_field = "bpm"
+        sort_dir = -1
+
+    beats = await db.beats.find(query, {"_id": 0}).sort(sort_field, sort_dir).limit(limit).to_list(limit)
+    total = await db.beats.count_documents(query)
+    return {"beats": beats, "total": total}
 
 
 @beats_router.get("/{beat_id}")
