@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PublicLayout from '../components/PublicLayout';
 import GlobalFooter from '../components/GlobalFooter';
-import { ArrowRight, Check, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo, InstagramLogo, Envelope, MusicNote, Playlist, Rocket, CheckCircle, Headset, Globe, CurrencyDollar, ShieldCheck, Star, Quotes } from '@phosphor-icons/react';
+import { ArrowRight, Check, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo, InstagramLogo, Envelope, MusicNote, MusicNotes, Playlist, Rocket, CheckCircle, Headset, Globe, CurrencyDollar, ShieldCheck, Star, Quotes } from '@phosphor-icons/react';
 
 // Hero images
 const heroSlideImages = [
@@ -371,6 +371,46 @@ const LandingPage = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== NEED BEATS / INSTRUMENTALS ===== */}
+      <section className="py-24 px-6 bg-black" data-testid="need-beats-section">
+        <div className="max-w-7xl mx-auto">
+          <div className="rounded-3xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #9C27B0 0%, #E040FB 50%, #7C4DFF 100%)' }}>
+            <div className="absolute inset-0 bg-black/10" />
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center p-10 sm:p-16">
+              <div>
+                <MusicNotes className="w-16 h-16 text-white mb-6" weight="fill" />
+                <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white mb-6">
+                  Need Beats or Instrumentals?
+                </h2>
+                <p className="text-lg text-white/80 leading-relaxed mb-8">
+                  Can't make your own beats? No problem! Get professional instrumentals with full rights or lease options.
+                </p>
+                <Link to="/instrumentals">
+                  <button className="bg-white px-10 py-4 rounded-full font-bold text-sm tracking-[2px] flex items-center gap-3 text-[#9C27B0] hover:brightness-95 transition-all shadow-lg" data-testid="request-beat-btn">
+                    REQUEST A BEAT <ArrowRight className="w-5 h-5" />
+                  </button>
+                </Link>
+              </div>
+              <div className="space-y-5">
+                {[
+                  'Exclusive Rights Available',
+                  'Affordable Lease Options',
+                  'All Genres: Hip-Hop, R&B, Afrobeats, Dancehall',
+                  'Custom Beats on Request',
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-4 h-4 text-white" weight="bold" />
+                    </div>
+                    <p className="text-lg text-white font-medium">{item}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

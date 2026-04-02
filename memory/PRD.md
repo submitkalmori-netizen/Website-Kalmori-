@@ -89,6 +89,12 @@ Frontend: React + Tailwind + Shadcn/UI | Backend: FastAPI + Motor + MongoDB | Au
 - [x] How-it-works explainer
 - [x] Content ID management page
 
+### Landing Page TuneCore Redesign [Apr 2, 2026]
+- [x] TuneCore "Letter Layout" typography-forward design applied
+- [x] KALMORI animated logo preserved in pink/purple
+- [x] All original content sections preserved
+- [x] "Need Beats or Instrumentals?" section restored with matching design
+
 ### Beat Audio Previews [Apr 2, 2026]
 - [x] Beat catalog on Instrumentals/Leasing page
 - [x] Play/pause toggle with animated waveform bars
