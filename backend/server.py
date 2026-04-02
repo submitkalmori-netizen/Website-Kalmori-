@@ -583,6 +583,135 @@ async def get_trending(request: Request):
     trending.sort(key=lambda x: x["streams_this_week"], reverse=True)
     return {"trending": trending[:10], "period": "last_7_days"}
 
+# Per-stream rates by platform (industry average estimates in USD)
+PLATFORM_RATES = {
+    "Spotify": 0.004, "Apple Music": 0.008, "YouTube Music": 0.002,
+    "Amazon Music": 0.004, "Tidal": 0.012, "Deezer": 0.003,
+    "Pandora": 0.002, "SoundCloud": 0.003,
+}
+
+@api_router.get("/analytics/revenue")
+async def get_revenue_analytics(request: Request):
+    user = await get_current_user(request)
+    plan = user.get("plan", "free")
+    plan_cut = SUBSCRIPTION_PLANS.get(plan, {}).get("revenue_share", 15) / 100
+
+    # Platform streams and revenue
+    pipeline = [
+        {"$match": {"artist_id": user["id"]}},
+        {"$group": {"_id": "$platform", "streams": {"$sum": 1}, "raw_revenue": {"$sum": "$revenue"}}}
+    ]
+    platform_data = await db.stream_events.aggregate(pipeline).to_list(20)
+
+    platforms = []
+    total_gross = 0
+    total_streams = 0
+    for p in sorted(platform_data, key=lambda x: -x["streams"]):
+        name = p["_id"] or "Other"
+        rate = PLATFORM_RATES.get(name, 0.004)
+        gross = round(p["streams"] * rate, 2)
+        net = round(gross * (1 - plan_cut), 2)
+        total_gross += gross
+        total_streams += p["streams"]
+        platforms.append({"platform": name, "streams": p["streams"], "rate_per_stream": rate, "gross_revenue": gross, "net_revenue": net})
+
+    total_net = round(total_gross * (1 - plan_cut), 2)
+    platform_cut = round(total_gross * plan_cut, 2)
+
+    # Monthly revenue trend (last 6 months)
+    now = datetime.now(timezone.utc)
+    monthly = []
+    for i in range(5, -1, -1):
+        month_start = (now.replace(day=1) - timedelta(days=30 * i)).strftime("%Y-%m")
+        m_pipeline = [
+            {"$match": {"artist_id": user["id"], "timestamp": {"$regex": f"^{month_start}"}}},
+            {"$group": {"_id": "$platform", "streams": {"$sum": 1}}}
+        ]
+        m_data = await db.stream_events.aggregate(m_pipeline).to_list(20)
+        m_gross = sum(r["streams"] * PLATFORM_RATES.get(r["_id"] or "Other", 0.004) for r in m_data)
+        m_streams = sum(r["streams"] for r in m_data)
+        monthly.append({"month": month_start, "streams": m_streams, "gross": round(m_gross, 2), "net": round(m_gross * (1 - plan_cut), 2)})
+
+    # Collaborator splits
+    collabs = await db.collaborations.find({"artist_id": user["id"], "status": "accepted"}, {"_id": 0}).to_list(50)
+    splits = []
+    for c in collabs:
+        split_pct = c.get("split_percentage", 0)
+        split_amount = round(total_net * split_pct / 100, 2)
+        splits.append({
+            "collaborator": c.get("collaborator_name", c.get("collaborator_email", "Unknown")),
+            "release_id": c.get("release_id", ""),
+            "role": c.get("role", "collaborator"),
+            "split_percentage": split_pct,
+            "estimated_amount": split_amount,
+        })
+    total_collab_payout = sum(s["estimated_amount"] for s in splits)
+    artist_take = round(total_net - total_collab_payout, 2)
+
+    return {
+        "summary": {
+            "total_streams": total_streams,
+            "gross_revenue": round(total_gross, 2),
+            "platform_fee": platform_cut,
+            "net_revenue": total_net,
+            "artist_take": artist_take,
+            "collab_payouts": round(total_collab_payout, 2),
+            "plan": plan,
+            "plan_cut_percent": round(plan_cut * 100, 1),
+            "avg_rate_per_stream": round(total_gross / max(total_streams, 1), 4),
+        },
+        "platforms": platforms,
+        "monthly_trend": monthly,
+        "collaborator_splits": splits,
+    }
+
+class RevenueCalculatorInput(BaseModel):
+    streams: int = 10000
+    platform_mix: Optional[dict] = None
+
+@api_router.post("/analytics/revenue/calculator")
+async def revenue_calculator(data: RevenueCalculatorInput, request: Request):
+    user = await get_current_user(request)
+    plan = user.get("plan", "free")
+    plan_cut = SUBSCRIPTION_PLANS.get(plan, {}).get("revenue_share", 15) / 100
+
+    # Default platform mix if not provided
+    mix = data.platform_mix or {"Spotify": 45, "Apple Music": 25, "YouTube Music": 15, "Amazon Music": 10, "Other": 5}
+    total_pct = sum(mix.values())
+
+    results = []
+    total_gross = 0
+    for platform, pct in sorted(mix.items(), key=lambda x: -x[1]):
+        streams = int(data.streams * pct / max(total_pct, 1))
+        rate = PLATFORM_RATES.get(platform, 0.004)
+        gross = round(streams * rate, 2)
+        total_gross += gross
+        results.append({"platform": platform, "streams": streams, "rate": rate, "gross": gross})
+
+    total_net = round(total_gross * (1 - plan_cut), 2)
+
+    # Collaborator splits
+    collabs = await db.collaborations.find({"artist_id": user["id"], "status": "accepted"}, {"_id": 0, "collaborator_name": 1, "split_percentage": 1}).to_list(50)
+    total_collab = 0
+    collab_breakdown = []
+    for c in collabs:
+        amt = round(total_net * c.get("split_percentage", 0) / 100, 2)
+        total_collab += amt
+        collab_breakdown.append({"name": c.get("collaborator_name", "Collaborator"), "percentage": c.get("split_percentage", 0), "amount": amt})
+
+    return {
+        "input_streams": data.streams,
+        "platform_breakdown": results,
+        "gross_revenue": round(total_gross, 2),
+        "platform_fee": round(total_gross * plan_cut, 2),
+        "net_revenue": total_net,
+        "collab_payouts": round(total_collab, 2),
+        "artist_take": round(total_net - total_collab, 2),
+        "plan": plan,
+        "plan_cut_percent": round(plan_cut * 100, 1),
+        "collaborator_splits": collab_breakdown,
+    }
+
 # ============= SUBSCRIPTIONS =============
 SUBSCRIPTION_PLANS = {
     "free": {"name": "Free", "price": 0, "revenue_share": 15, "features": ["Basic distribution", "Standard analytics"]},

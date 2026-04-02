@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { Button } from './ui/button';
-import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check, UsersThree, Megaphone, HeartStraight, Lightning } from '@phosphor-icons/react';
+import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check, UsersThree, Megaphone, HeartStraight, Lightning, CurrencyDollar } from '@phosphor-icons/react';
 import axios from 'axios';
 import { API } from '../App';
 
@@ -124,6 +124,7 @@ const DashboardLayout = ({ children }) => {
     { path: '/collaborations', icon: <UsersThree className="w-5 h-5" />, label: 'Collaborations' },
     { path: '/presave-manager', icon: <Megaphone className="w-5 h-5" />, label: 'Pre-Save' },
     { path: '/fan-analytics', icon: <HeartStraight className="w-5 h-5" />, label: 'Fan Analytics' },
+    { path: '/revenue', icon: <CurrencyDollar className="w-5 h-5" />, label: 'Revenue' },
     { path: '/settings', icon: <Gear className="w-5 h-5" />, label: 'Settings' },
   ];
 
