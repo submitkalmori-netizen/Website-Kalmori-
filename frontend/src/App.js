@@ -18,6 +18,16 @@ import AuthCallback from './pages/AuthCallback';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
+import PricingPage from './pages/PricingPage';
+import ServicesPage from './pages/ServicesPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import PromotingPage from './pages/PromotingPage';
+import PublishingPage from './pages/PublishingPage';
+import StoresPage from './pages/StoresPage';
+import InstrumentalsPage from './pages/InstrumentalsPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -159,6 +169,17 @@ const AppRouter = () => {
       <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/submissions" element={<AdminRoute><AdminSubmissionsPage /></AdminRoute>} />
       <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/services" element={<ServicesPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/promoting" element={<PromotingPage />} />
+      <Route path="/publishing" element={<PublishingPage />} />
+      <Route path="/stores" element={<StoresPage />} />
+      <Route path="/leasing" element={<InstrumentalsPage />} />
+      <Route path="/instrumentals" element={<InstrumentalsPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

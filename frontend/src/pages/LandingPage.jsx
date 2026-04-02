@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import PublicLayout from '../components/PublicLayout';
+import GlobalFooter from '../components/GlobalFooter';
 import { MusicNotes, ChartLineUp, Globe, Wallet, Play, ArrowRight, Check, List, X, ArrowUp, User, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo, InstagramLogo, Envelope, MusicNote, Playlist } from '@phosphor-icons/react';
 
 // Your original hero images
@@ -132,9 +134,7 @@ const promotionCards = [
 ];
 
 const LandingPage = () => {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
   
   // Auto-rotate slides every 30 seconds
@@ -155,18 +155,9 @@ const LandingPage = () => {
       setZoomScale(1);
     }
   }, [currentSlide]);
-  
-  // Scroll detection
-  useEffect(() => {
-    const handleScroll = () => setShowScrollTop(window.scrollY > 400);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-  
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <PublicLayout>
       {/* Custom CSS for animations */}
       <style>{`
         @keyframes colorCycle { 0%{color:#7C4DFF} 33%{color:#E040FB} 66%{color:#FF4081} 100%{color:#7C4DFF} }
@@ -181,52 +172,8 @@ const LandingPage = () => {
         .animate-underline { animation: underlineCycle 6s ease-in-out infinite; }
       `}</style>
 
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-lg">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button onClick={() => setMenuOpen(true)} className="p-2 lg:hidden"><List className="w-6 h-6" /></button>
-          <Link to="/" className="absolute left-1/2 -translate-x-1/2 lg:static lg:translate-x-0 flex flex-col items-center">
-            <AnimatedColorText className="text-2xl font-extrabold tracking-[4px]">KALMORI</AnimatedColorText>
-            <div className="w-10 h-[3px] rounded mt-1 animate-underline" />
-          </Link>
-          <div className="hidden lg:flex items-center gap-8">
-            <a href="#pricing" className="text-sm text-gray-400 hover:text-white">Pricing</a>
-            <a href="#platforms" className="text-sm text-gray-400 hover:text-white">Platforms</a>
-            <a href="#features" className="text-sm text-gray-400 hover:text-white">Features</a>
-          </div>
-          <Link to="/login" className="p-2">
-            <div className="w-10 h-10 rounded-full border-2 border-[#7C4DFF] flex items-center justify-center">
-              <User className="w-5 h-5 text-[#7C4DFF]" />
-            </div>
-          </Link>
-        </div>
-      </header>
-
-      {/* Mobile Menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMenuOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-[85%] max-w-[320px] bg-[#0a0a0a] border-r border-white/10 pt-12">
-            <div className="p-5 border-b border-white/10 flex items-center justify-between">
-              <AnimatedColorText className="text-xl font-bold tracking-[3px]">KALMORI</AnimatedColorText>
-              <button onClick={() => setMenuOpen(false)} className="p-2"><X className="w-6 h-6" /></button>
-            </div>
-            <div className="px-5 py-3"><AnimatedTagline /></div>
-            <div className="h-[2px] mx-5 mb-4 animate-underline" />
-            <nav className="p-5 space-y-2">
-              {[{to:'/',label:'Home',icon:<MusicNotes/>},{to:'/releases',label:'My Releases',icon:<Play/>},{to:'#pricing',label:'Pricing',icon:<Wallet/>},{to:'/services',label:'Our Services',icon:<Globe/>}].map(item=>(
-                <Link key={item.label} to={item.to} onClick={() => setMenuOpen(false)} className="flex items-center gap-4 py-3 text-white hover:text-[#7C4DFF]">{item.icon}<span>{item.label}</span></Link>
-              ))}
-              <div className="border-t border-white/10 my-4" />
-              <Link to="/login" onClick={() => setMenuOpen(false)}><button className="w-full animate-btn-gradient py-3 rounded-lg text-white font-semibold">Sign In</button></Link>
-              <Link to="/register" onClick={() => setMenuOpen(false)}><button className="w-full border border-[#7C4DFF] py-3 rounded-lg text-[#7C4DFF] font-semibold mt-3">Create Account</button></Link>
-            </nav>
-          </div>
-        </div>
-      )}
-
       {/* Hero Section */}
-      <section className="relative min-h-screen pt-16 overflow-hidden">
+      <section className="relative min-h-screen overflow-hidden">
         <div className="absolute inset-0 transition-all duration-500" style={{ backgroundImage: `url(${heroSlideImages[currentSlide]})`, backgroundSize: 'cover', backgroundPosition: 'center', transform: `scale(${zoomScale})` }} />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,1) 100%)' }} />
         <div className="relative z-10 min-h-screen flex flex-col items-center justify-end pb-24 px-6">
@@ -394,23 +341,8 @@ const LandingPage = () => {
         <Link to="/register"><button className="bg-white text-[#E53935] px-8 py-4 rounded font-bold text-sm tracking-wider inline-flex items-center gap-2">GET STARTED FREE <ArrowRight className="w-4 h-4" /></button></Link>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 px-6 border-t border-white/10 bg-black text-center">
-        <span className="text-xl font-bold tracking-[3px] text-[#E53935]">KALMORI</span>
-        <p className="text-gray-400 text-sm mt-2 mb-6">Your Music, Your Way</p>
-        <div className="flex flex-wrap justify-center gap-6 mb-6">
-          {['Terms','Privacy','Support','Contact','Stores'].map(l=>(<a key={l} href="#" className="text-sm text-gray-400 hover:text-white">{l}</a>))}
-        </div>
-        <p className="text-xs text-gray-600">© 2026 Kalmori. All rights reserved.</p>
-      </footer>
-
-      {/* Scroll to Top */}
-      {showScrollTop && (
-        <button onClick={scrollToTop} className="fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center shadow-lg z-40 animate-btn-gradient">
-          <ArrowUp className="w-6 h-6 text-white" />
-        </button>
-      )}
-    </div>
+      <GlobalFooter />
+    </PublicLayout>
   );
 };
 

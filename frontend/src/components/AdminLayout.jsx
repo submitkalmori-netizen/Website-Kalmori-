@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../App';
+import { useAuth, API } from '../App';
 import { Button } from './ui/button';
-import { House, Users, ClipboardText, ChartBar, Gear, SignOut, List, X, ArrowLeft, ShieldCheck } from '@phosphor-icons/react';
+import { House, Users, ClipboardText, ChartBar, Gear, SignOut, List, X, ArrowLeft, ShieldCheck, Bell } from '@phosphor-icons/react';
+import axios from 'axios';
 
 const AdminLayout = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const res = await axios.get(`${API}/admin/submissions?status=pending_review&limit=1`);
+        setPendingCount(res.data.total || 0);
+      } catch {}
+    };
+    fetchPending();
+    const interval = setInterval(fetchPending, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { path: '/admin', icon: <ChartBar className="w-5 h-5" />, label: 'Overview', exact: true },
@@ -76,7 +90,15 @@ const AdminLayout = ({ children }) => {
           <div className="px-6 py-4 flex items-center justify-between">
             <button className="lg:hidden p-2 hover:bg-white/5 rounded-lg" onClick={() => setSidebarOpen(true)}><List className="w-6 h-6" /></button>
             <div className="flex-1" />
-            <span className="text-xs px-3 py-1 bg-[#E53935]/10 text-[#E53935] rounded-full font-semibold uppercase tracking-wider">Admin Panel</span>
+            <div className="flex items-center gap-3">
+              <Link to="/admin/submissions" className="relative p-2 hover:bg-white/5 rounded-lg transition-colors" data-testid="admin-notification-bell">
+                <Bell className="w-5 h-5 text-gray-400" />
+                {pendingCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-[#E53935] rounded-full flex items-center justify-center text-[10px] font-bold text-white animate-pulse" data-testid="pending-count">{pendingCount}</span>
+                )}
+              </Link>
+              <span className="text-xs px-3 py-1 bg-[#E53935]/10 text-[#E53935] rounded-full font-semibold uppercase tracking-wider">Admin Panel</span>
+            </div>
           </div>
         </header>
         <main className="flex-1 p-6 md:p-8">{children}</main>
