@@ -559,3 +559,191 @@ async def export_strategy_pdf(data: ExportStrategyRequest, request: Request):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+COUNTRY_NAMES = {"US": "United States", "UK": "United Kingdom", "NG": "Nigeria", "DE": "Germany", "CA": "Canada", "AU": "Australia", "BR": "Brazil", "JP": "Japan", "FR": "France", "IN": "India", "JM": "Jamaica", "KE": "Kenya", "GH": "Ghana", "ZA": "South Africa"}
+
+@ai_router.post("/smart-insights")
+async def generate_smart_insights(request: Request):
+    """Analyze fan analytics trends and generate AI-powered actionable notifications"""
+    user = await _get_user_from_request(request)
+    from motor.motor_asyncio import AsyncIOMotorClient
+    db_client = AsyncIOMotorClient(os.environ['MONGO_URL'])
+    db = db_client[os.environ['DB_NAME']]
+
+    try:
+        now = datetime.now(timezone.utc)
+        week_ago = (now - timedelta(days=7)).isoformat()
+        two_weeks_ago = (now - timedelta(days=14)).isoformat()
+
+        # Recent week streams
+        recent = await db.stream_events.find(
+            {"artist_id": user["id"], "timestamp": {"$gte": week_ago}}, {"_id": 0}
+        ).to_list(5000)
+
+        # Previous week streams
+        prev = await db.stream_events.find(
+            {"artist_id": user["id"], "timestamp": {"$gte": two_weeks_ago, "$lt": week_ago}}, {"_id": 0}
+        ).to_list(5000)
+
+        recent_total = len(recent)
+        prev_total = len(prev) or 1
+
+        # Country breakdown
+        def count_by(items, key):
+            counts = {}
+            for item in items:
+                v = item.get(key, "Unknown")
+                counts[v] = counts.get(v, 0) + 1
+            return counts
+
+        recent_countries = count_by(recent, "country")
+        prev_countries = count_by(prev, "country")
+        recent_platforms = count_by(recent, "platform")
+        prev_platforms = count_by(prev, "platform")
+
+        # Peak hours
+        def count_hours(items):
+            hours = {}
+            for item in items:
+                ts = item.get("timestamp", "")
+                if len(ts) >= 13:
+                    h = ts[11:13]
+                    if h.isdigit():
+                        hours[int(h)] = hours.get(int(h), 0) + 1
+            return hours
+
+        recent_hours = count_hours(recent)
+        prev_hours = count_hours(prev)
+
+        # Compute growth metrics
+        overall_growth = round((recent_total - prev_total) / max(prev_total, 1) * 100, 1)
+
+        country_trends = []
+        for c, cnt in sorted(recent_countries.items(), key=lambda x: -x[1])[:8]:
+            prev_cnt = prev_countries.get(c, 0) or 1
+            growth = round((cnt - prev_cnt) / prev_cnt * 100, 1)
+            name = COUNTRY_NAMES.get(c, c)
+            country_trends.append(f"{name} ({c}): {cnt} streams this week ({growth:+.1f}% vs last week)")
+
+        platform_trends = []
+        for p, cnt in sorted(recent_platforms.items(), key=lambda x: -x[1])[:6]:
+            prev_cnt = prev_platforms.get(p, 0) or 1
+            growth = round((cnt - prev_cnt) / prev_cnt * 100, 1)
+            platform_trends.append(f"{p}: {cnt} streams ({growth:+.1f}%)")
+
+        peak_shift = ""
+        if recent_hours and prev_hours:
+            recent_peak = max(recent_hours, key=recent_hours.get)
+            prev_peak = max(prev_hours, key=prev_hours.get)
+            if recent_peak != prev_peak:
+                peak_shift = f"Peak listening hour shifted from {prev_peak}:00 UTC to {recent_peak}:00 UTC"
+
+        # Pre-save campaigns
+        campaigns = await db.presave_campaigns.find({"artist_id": user["id"]}, {"_id": 0, "subscriber_count": 1, "title": 1}).to_list(10)
+        campaign_info = ", ".join(f"{c.get('title','Untitled')}: {c.get('subscriber_count',0)} subs" for c in campaigns[:3]) if campaigns else "No active campaigns"
+
+        # Build AI prompt
+        prompt = f"""You are a music growth coach analyzing an artist's streaming trends. Based on the data below, generate 3-5 actionable smart insights/notifications. Each should be specific, data-driven, and immediately actionable.
+
+STREAMING OVERVIEW:
+- This week: {recent_total} streams | Last week: {prev_total} streams | Growth: {overall_growth:+.1f}%
+
+COUNTRY TRENDS (this week vs last):
+{chr(10).join(country_trends) if country_trends else "No geographic data yet"}
+
+PLATFORM TRENDS:
+{chr(10).join(platform_trends) if platform_trends else "No platform data yet"}
+
+{f"PEAK HOUR SHIFT: {peak_shift}" if peak_shift else ""}
+
+PRE-SAVE CAMPAIGNS: {campaign_info}
+
+Generate your response as a valid JSON array of objects with this structure:
+[
+  {{
+    "title": "Short headline (max 60 chars)",
+    "message": "Detailed actionable insight (max 200 chars)",
+    "category": "growth|geographic|platform|timing|campaign",
+    "priority": "high|medium|low",
+    "metric_value": "e.g. +40%",
+    "action_suggestion": "One specific action they should take"
+  }}
+]
+
+Be specific with numbers from the data. Don't be generic. Return ONLY the JSON array."""
+
+        insights_raw = []
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            chat = LlmChat(
+                api_key=EMERGENT_KEY,
+                session_id=f"insights_{user['id']}_{uuid.uuid4().hex[:8]}",
+                system_message="You are a music growth analyst. Always respond with valid JSON only."
+            ).with_model("openai", "gpt-4o")
+
+            response = await chat.send_message(UserMessage(text=prompt))
+            clean = response.strip()
+            if clean.startswith("```"):
+                clean = clean.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+            insights_raw = json.loads(clean)
+        except Exception as e:
+            logger.error(f"Smart insights AI error: {e}")
+            insights_raw = [
+                {"title": f"Streams {'Up' if overall_growth > 0 else 'Down'} {abs(overall_growth)}%", "message": f"Your streams went from {prev_total} to {recent_total} this week. {'Keep the momentum going!' if overall_growth > 0 else 'Consider boosting promotion.'}", "category": "growth", "priority": "high", "metric_value": f"{overall_growth:+.1f}%", "action_suggestion": "Review your promotion strategy for this week."}
+            ]
+
+        # Store as notifications
+        created_insights = []
+        for insight in insights_raw[:5]:
+            notif_id = f"notif_{uuid.uuid4().hex[:12]}"
+            notif = {
+                "id": notif_id,
+                "user_id": user["id"],
+                "message": f"{insight.get('title', 'Insight')}: {insight.get('message', '')}",
+                "type": "ai_insight",
+                "category": insight.get("category", "growth"),
+                "priority": insight.get("priority", "medium"),
+                "metric_value": insight.get("metric_value", ""),
+                "action_suggestion": insight.get("action_suggestion", ""),
+                "read": False,
+                "created_at": now.isoformat(),
+            }
+            await db.notifications.insert_one(notif)
+            notif.pop("_id", None)
+            created_insights.append(notif)
+
+        db_client.close()
+        return {
+            "insights": created_insights,
+            "data_context": {
+                "recent_streams": recent_total,
+                "previous_streams": prev_total,
+                "overall_growth": overall_growth,
+                "top_country": max(recent_countries, key=recent_countries.get) if recent_countries else None,
+                "top_platform": max(recent_platforms, key=recent_platforms.get) if recent_platforms else None,
+            },
+            "generated_at": now.isoformat(),
+        }
+    except HTTPException:
+        db_client.close()
+        raise
+    except Exception as e:
+        db_client.close()
+        logger.error(f"Smart insights error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate insights")
+
+@ai_router.get("/smart-insights")
+async def get_smart_insights(request: Request):
+    """Get recent AI-generated smart insights for the current user"""
+    user = await _get_user_from_request(request)
+    from motor.motor_asyncio import AsyncIOMotorClient
+    db_client = AsyncIOMotorClient(os.environ['MONGO_URL'])
+    db = db_client[os.environ['DB_NAME']]
+    try:
+        insights = await db.notifications.find(
+            {"user_id": user["id"], "type": "ai_insight"}, {"_id": 0}
+        ).sort("created_at", -1).to_list(20)
+        return {"insights": insights, "total": len(insights)}
+    finally:
+        db_client.close()

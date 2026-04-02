@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { Button } from './ui/button';
-import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check, UsersThree, Megaphone, HeartStraight } from '@phosphor-icons/react';
+import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check, UsersThree, Megaphone, HeartStraight, Lightning } from '@phosphor-icons/react';
 import axios from 'axios';
 import { API } from '../App';
 
@@ -19,12 +19,27 @@ const NotificationPanel = ({ notifications, onMarkRead, onMarkAllRead, onClose }
         <div className="p-6 text-center text-sm text-gray-500">No notifications yet</div>
       ) : (
         notifications.map(n => (
-          <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${!n.read ? 'bg-[#7C4DFF]/5' : ''}`}
+          <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${!n.read ? (n.type === 'ai_insight' ? 'bg-[#E040FB]/5' : 'bg-[#7C4DFF]/5') : ''}`}
             onClick={() => !n.read && onMarkRead(n.id)} data-testid={`notification-${n.id}`}>
             <div className="flex items-start gap-3">
-              {!n.read && <div className="w-2 h-2 rounded-full bg-[#7C4DFF] mt-1.5 flex-shrink-0" />}
+              {n.type === 'ai_insight' ? (
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#E040FB] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Lightning className="w-3 h-3 text-white" weight="fill" />
+                </div>
+              ) : (
+                !n.read && <div className="w-2 h-2 rounded-full bg-[#7C4DFF] mt-1.5 flex-shrink-0" />
+              )}
               <div className="flex-1 min-w-0">
+                {n.type === 'ai_insight' && (
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[10px] font-bold text-[#E040FB] uppercase tracking-wider">AI Insight</span>
+                    {n.metric_value && <span className="text-[10px] font-bold text-[#FFD700] bg-[#FFD700]/10 px-1.5 py-0.5 rounded">{n.metric_value}</span>}
+                  </div>
+                )}
                 <p className="text-sm text-white leading-snug">{n.message}</p>
+                {n.action_suggestion && (
+                  <p className="text-xs text-[#7C4DFF] mt-1 leading-snug">{n.action_suggestion}</p>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   {n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
                 </p>

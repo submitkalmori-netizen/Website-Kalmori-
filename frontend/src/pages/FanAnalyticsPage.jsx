@@ -35,8 +35,11 @@ export default function FanAnalyticsPage() {
   const [compareA, setCompareA] = useState(null);
   const [compareB, setCompareB] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [smartInsights, setSmartInsights] = useState([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [lastAnalyzed, setLastAnalyzed] = useState(null);
 
-  useEffect(() => { fetchData(); fetchSavedStrategies(); }, []);
+  useEffect(() => { fetchData(); fetchSavedStrategies(); fetchSmartInsights(); }, []);
 
   const fetchData = async () => {
     try {
@@ -52,6 +55,31 @@ export default function FanAnalyticsPage() {
       setSavedStrategies(res.data.strategies || []);
     } catch (err) { console.error(err); }
   }, []);
+
+  const fetchSmartInsights = async () => {
+    try {
+      const res = await axios.get(`${API}/ai/smart-insights`, { withCredentials: true });
+      const insights = res.data.insights || [];
+      setSmartInsights(insights);
+      if (insights.length > 0) setLastAnalyzed(insights[0].created_at);
+    } catch (err) { console.error(err); }
+  };
+
+  const generateSmartInsights = async () => {
+    setInsightsLoading(true);
+    try {
+      const res = await axios.post(`${API}/ai/smart-insights`, {}, { withCredentials: true });
+      const newInsights = res.data.insights || [];
+      setSmartInsights(prev => [...newInsights, ...prev].slice(0, 20));
+      setLastAnalyzed(res.data.generated_at);
+      toast.success(`${newInsights.length} new insights generated!`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to generate insights');
+    } finally {
+      setInsightsLoading(false);
+    }
+  };
 
   const generateStrategy = async () => {
     setStrategyLoading(true);
@@ -258,6 +286,60 @@ export default function FanAnalyticsPage() {
             </ResponsiveContainer>
           </div>
           <p className="text-xs text-gray-500 mt-2 text-center">Best times to release new music and run campaigns</p>
+        </div>
+
+        {/* AI Smart Insights Section */}
+        <div className="bg-gradient-to-br from-[#0a1628] to-[#111] border border-[#E040FB]/20 rounded-2xl p-6" data-testid="smart-insights-section">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7C4DFF] to-[#E040FB] flex items-center justify-center">
+                <Lightning className="w-5 h-5 text-white" weight="fill" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Smart Insights</h2>
+                <p className="text-xs text-gray-400">AI-powered growth coaching based on your streaming trends</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {lastAnalyzed && (
+                <span className="text-[10px] text-gray-500 hidden sm:block">
+                  Last analyzed {new Date(lastAnalyzed).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              )}
+              <button
+                onClick={generateSmartInsights}
+                disabled={insightsLoading}
+                className="px-4 py-2 bg-gradient-to-r from-[#7C4DFF] to-[#E040FB] text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5 disabled:opacity-50"
+                data-testid="analyze-trends-btn"
+              >
+                {insightsLoading ? (
+                  <><SpinnerGap className="w-4 h-4 animate-spin" /> Analyzing...</>
+                ) : (
+                  <><Lightning className="w-4 h-4" weight="fill" /> Analyze Trends</>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {smartInsights.length === 0 && !insightsLoading && (
+            <div className="text-center py-8">
+              <Lightning className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No insights yet. Click "Analyze Trends" to get AI-powered recommendations.</p>
+            </div>
+          )}
+
+          {smartInsights.length > 0 && (
+            <div className="space-y-3" data-testid="insights-list">
+              {smartInsights.slice(0, 5).map((insight, i) => (
+                <SmartInsightCard key={insight.id || i} insight={insight} />
+              ))}
+              {smartInsights.length > 5 && (
+                <p className="text-xs text-gray-500 text-center pt-1">
+                  + {smartInsights.length - 5} more insights in your notification bell
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* AI Release Strategy Section */}
@@ -810,6 +892,49 @@ function StatCard({ icon, value, label, color }) {
         <div>
           <p className="text-2xl font-bold font-mono">{value}</p>
           <p className="text-sm text-gray-400">{label}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CATEGORY_CONFIG = {
+  growth: { color: '#1DB954', label: 'Growth' },
+  geographic: { color: '#E040FB', label: 'Geographic' },
+  platform: { color: '#7C4DFF', label: 'Platform' },
+  timing: { color: '#FFD700', label: 'Timing' },
+  campaign: { color: '#FF6B6B', label: 'Campaign' },
+};
+
+function SmartInsightCard({ insight }) {
+  const cat = CATEGORY_CONFIG[insight.category] || CATEGORY_CONFIG.growth;
+  const priorityBorder = insight.priority === 'high' ? 'border-l-green-400' : insight.priority === 'medium' ? 'border-l-yellow-400' : 'border-l-gray-500';
+
+  return (
+    <div
+      className={`bg-[#0a0a0a] border border-white/10 rounded-xl p-4 border-l-4 ${priorityBorder} hover:bg-white/[0.02] transition-colors`}
+      data-testid={`insight-card-${insight.id || ''}`}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ color: cat.color, backgroundColor: `${cat.color}15` }}>
+              {cat.label}
+            </span>
+            {insight.metric_value && (
+              <span className="text-[10px] font-bold text-[#FFD700] bg-[#FFD700]/10 px-2 py-0.5 rounded-full">{insight.metric_value}</span>
+            )}
+            <span className={`text-[10px] font-bold uppercase ${insight.priority === 'high' ? 'text-green-400' : insight.priority === 'medium' ? 'text-yellow-400' : 'text-gray-500'}`}>
+              {insight.priority}
+            </span>
+          </div>
+          <p className="text-sm text-white leading-snug">{insight.message}</p>
+          {insight.action_suggestion && (
+            <p className="text-xs text-[#7C4DFF] mt-1.5 flex items-center gap-1">
+              <ArrowRight className="w-3 h-3 flex-shrink-0" />
+              {insight.action_suggestion}
+            </p>
+          )}
         </div>
       </div>
     </div>
