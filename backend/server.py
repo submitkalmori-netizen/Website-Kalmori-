@@ -1354,17 +1354,21 @@ async def startup():
     # Initialize CMS
     await init_cms_content()
 
-    # Seed streaming data for all users with distributed releases
+    # Seed streaming data with realistic DSP simulation engine
     await db.stream_events.create_index("artist_id")
     await db.stream_events.create_index("timestamp")
     await db.stream_events.create_index("platform")
     existing_events = await db.stream_events.count_documents({})
     if existing_events == 0:
+        import math
         all_users = await db.users.find({}, {"_id": 0, "id": 1}).to_list(100)
         platforms = ["Spotify", "Apple Music", "YouTube Music", "Amazon Music", "TikTok", "Tidal", "Deezer", "SoundCloud"]
         platform_weights = [0.40, 0.22, 0.15, 0.08, 0.06, 0.04, 0.03, 0.02]
+        platform_rev = {"Spotify": 0.004, "Apple Music": 0.006, "YouTube Music": 0.002, "Amazon Music": 0.004, "TikTok": 0.003, "Tidal": 0.009, "Deezer": 0.004, "SoundCloud": 0.003}
         countries = ["US", "UK", "NG", "DE", "CA", "AU", "BR", "JP", "FR", "IN", "JM", "KE", "GH", "ZA"]
         country_weights = [0.30, 0.12, 0.10, 0.08, 0.07, 0.06, 0.05, 0.04, 0.04, 0.04, 0.03, 0.03, 0.02, 0.02]
+        # Peak hours by region (UTC)
+        peak_hours = {"US": [14, 15, 16, 17, 22, 23, 0, 1], "UK": [8, 9, 17, 18, 19, 20], "NG": [7, 8, 12, 17, 18, 19, 20], "DE": [7, 8, 17, 18, 19], "CA": [14, 15, 16, 23, 0], "AU": [22, 23, 0, 7, 8, 9], "BR": [12, 13, 21, 22, 23], "JP": [0, 1, 2, 8, 9, 10], "FR": [7, 8, 17, 18, 19], "IN": [2, 3, 12, 13, 14], "JM": [14, 15, 22, 23], "KE": [6, 7, 16, 17, 18], "GH": [7, 8, 17, 18], "ZA": [6, 7, 16, 17, 18]}
         total_seeded = 0
         for user_doc in all_users:
             user_id = user_doc["id"]
@@ -1373,51 +1377,62 @@ async def startup():
                 continue
             events_batch = []
             for rel in releases:
-                num_events = random.randint(200, 800)
-                for _ in range(num_events):
-                    days_ago = random.randint(0, 29)
-                    hours_ago = random.randint(0, 23)
-                    ts = datetime.now(timezone.utc) - timedelta(days=days_ago, hours=hours_ago, minutes=random.randint(0, 59))
-                    platform = random.choices(platforms, weights=platform_weights, k=1)[0]
-                    country = random.choices(countries, weights=country_weights, k=1)[0]
-                    revenue = round(random.uniform(0.002, 0.008), 4)
-                    events_batch.append({
-                        "id": f"se_{uuid.uuid4().hex[:12]}",
-                        "artist_id": user_id,
-                        "release_id": rel["id"],
-                        "release_title": rel.get("title", ""),
-                        "platform": platform,
-                        "country": country,
-                        "revenue": revenue,
-                        "timestamp": ts.isoformat(),
-                    })
+                base_daily = random.randint(10, 35)
+                for days_ago in range(30):
+                    # Growth curve: newer days have more streams (simulates growth)
+                    growth = 1 + (30 - days_ago) * 0.02
+                    # Weekend boost (Sat=5, Sun=6)
+                    day = datetime.now(timezone.utc) - timedelta(days=days_ago)
+                    weekend_mult = 1.25 if day.weekday() >= 5 else 1.0
+                    daily_count = int(base_daily * growth * weekend_mult * random.uniform(0.7, 1.3))
+                    for _ in range(daily_count):
+                        country = random.choices(countries, weights=country_weights, k=1)[0]
+                        # Use peak hours for that country
+                        hours = peak_hours.get(country, list(range(24)))
+                        hour = random.choice(hours) if random.random() < 0.6 else random.randint(0, 23)
+                        minute = random.randint(0, 59)
+                        ts = day.replace(hour=hour, minute=minute, second=random.randint(0, 59))
+                        platform = random.choices(platforms, weights=platform_weights, k=1)[0]
+                        base_rev = platform_rev.get(platform, 0.004)
+                        revenue = round(base_rev * random.uniform(0.7, 1.3), 4)
+                        events_batch.append({
+                            "id": f"se_{uuid.uuid4().hex[:12]}",
+                            "artist_id": user_id,
+                            "release_id": rel["id"],
+                            "release_title": rel.get("title", ""),
+                            "platform": platform,
+                            "country": country,
+                            "revenue": revenue,
+                            "timestamp": ts.isoformat(),
+                        })
             if events_batch:
-                await db.stream_events.insert_many(events_batch)
+                # Batch insert in chunks
+                for i in range(0, len(events_batch), 1000):
+                    await db.stream_events.insert_many(events_batch[i:i+1000])
                 total_seeded += len(events_batch)
         if total_seeded > 0:
-            logger.info(f"Seeded {total_seeded} stream events for analytics")
+            logger.info(f"Seeded {total_seeded} realistic stream events for analytics")
         else:
-            # Seed demo events for admin user so analytics aren't empty
             admin_user = await db.users.find_one({"email": admin_email}, {"_id": 0, "id": 1})
             if admin_user:
                 demo_events = []
-                for _ in range(500):
-                    days_ago = random.randint(0, 29)
-                    ts = datetime.now(timezone.utc) - timedelta(days=days_ago, hours=random.randint(0, 23), minutes=random.randint(0, 59))
-                    platform = random.choices(platforms, weights=platform_weights, k=1)[0]
-                    country = random.choices(countries, weights=country_weights, k=1)[0]
-                    demo_events.append({
-                        "id": f"se_{uuid.uuid4().hex[:12]}",
-                        "artist_id": admin_user["id"],
-                        "release_id": "demo_release",
-                        "release_title": "Demo Track",
-                        "platform": platform,
-                        "country": country,
-                        "revenue": round(random.uniform(0.002, 0.008), 4),
-                        "timestamp": ts.isoformat(),
-                    })
+                for d in range(30):
+                    day = datetime.now(timezone.utc) - timedelta(days=d)
+                    count = int(20 * (1 + (30 - d) * 0.02) * random.uniform(0.7, 1.3))
+                    for _ in range(count):
+                        platform = random.choices(platforms, weights=platform_weights, k=1)[0]
+                        country = random.choices(countries, weights=country_weights, k=1)[0]
+                        demo_events.append({
+                            "id": f"se_{uuid.uuid4().hex[:12]}",
+                            "artist_id": admin_user["id"],
+                            "release_id": "demo_release",
+                            "release_title": "Demo Track",
+                            "platform": platform, "country": country,
+                            "revenue": round(platform_rev.get(platform, 0.004) * random.uniform(0.7, 1.3), 4),
+                            "timestamp": day.replace(hour=random.randint(0, 23), minute=random.randint(0, 59)).isoformat(),
+                        })
                 await db.stream_events.insert_many(demo_events)
-                logger.info("Seeded 500 demo stream events for admin")
+                logger.info(f"Seeded {len(demo_events)} demo stream events for admin")
 
     # Write test credentials
     from pathlib import Path
