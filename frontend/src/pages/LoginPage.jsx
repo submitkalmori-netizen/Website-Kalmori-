@@ -39,7 +39,7 @@ const LoginPage = () => {
     <div className="min-h-screen relative flex items-center justify-center">
       {/* Purple-pink gradient background */}
       <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #7C4DFF 0%, #9C27B0 30%, #E040FB 70%, #FF4081 100%)' }} />
-      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute inset-0 bg-black/50" />
 
       {/* Form */}
       <div className="relative z-10 w-full max-w-[420px] mx-auto px-6 py-12 text-center">
