@@ -1331,19 +1331,26 @@ async def get_share_card_data(request: Request):
 async def get_notification_prefs(request: Request):
     user = await get_current_user(request)
     prefs = await db.notification_preferences.find_one({"user_id": user["id"]}, {"_id": 0})
+    defaults = {
+        "user_id": user["id"],
+        "email_releases": True,
+        "email_collaborations": True,
+        "email_payments": True,
+        "email_marketing": False,
+        "push_releases": True,
+        "push_collaborations": True,
+        "push_payments": True,
+        "push_milestones": True,
+        "email_weekly_digest": True,
+    }
     if not prefs:
-        prefs = {
-            "user_id": user["id"],
-            "email_releases": True,
-            "email_collaborations": True,
-            "email_payments": True,
-            "email_marketing": False,
-            "push_releases": True,
-            "push_collaborations": True,
-            "push_payments": True,
-            "push_milestones": True,
-        }
+        prefs = defaults
         await db.notification_preferences.insert_one({**prefs})
+    else:
+        # Ensure new fields have defaults for existing users
+        for key, val in defaults.items():
+            if key not in prefs:
+                prefs[key] = val
     prefs.pop("_id", None)
     return prefs
 
@@ -1352,7 +1359,8 @@ async def update_notification_prefs(request: Request):
     user = await get_current_user(request)
     body = await request.json()
     allowed_keys = ["email_releases", "email_collaborations", "email_payments", "email_marketing",
-                    "push_releases", "push_collaborations", "push_payments", "push_milestones"]
+                    "push_releases", "push_collaborations", "push_payments", "push_milestones",
+                    "email_weekly_digest"]
     updates = {k: v for k, v in body.items() if k in allowed_keys and isinstance(v, bool)}
     if not updates:
         raise HTTPException(status_code=400, detail="No valid preferences provided")

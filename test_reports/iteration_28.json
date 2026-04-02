@@ -1,0 +1,149 @@
+{
+  "summary": "Iteration 28 - Tested NEW Weekly Digest Email feature. All 12 backend tests passed (100%). All frontend tests passed. Weekly Digest section on Fan Analytics page shows Preview/Send buttons. Preview modal displays branded HTML email with streaming stats, top markets, top platforms, AI insights. Settings > Notifications tab shows 'Weekly Performance Digest' toggle. Fixed minor bug: notification-preferences endpoint now returns email_weekly_digest field for existing users.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Recharts warnings", "issues": ["Console warnings about chart width/height being -1 during initial render - cosmetic only, charts render correctly"]}
+    ]
+  },
+  "passed_tests": [
+    "Backend: POST /api/digest/send requires authentication (returns 401/422 without token)",
+    "Backend: POST /api/digest/send returns stats: streams_this_week, streams_last_week, growth, top_countries, insights_included",
+    "Backend: POST /api/digest/preview requires authentication (returns 401/422 without token)",
+    "Backend: POST /api/digest/preview returns HTML containing 'KALMORI', 'Weekly', streaming stats",
+    "Backend: POST /api/digest/preview HTML has proper structure (This Week, Last Week, Growth sections)",
+    "Backend: GET /api/digest/history requires authentication (returns 401/422 without token)",
+    "Backend: GET /api/digest/history returns list of previously sent digests",
+    "Backend: GET /api/settings/notification-preferences includes email_weekly_digest field",
+    "Backend: PUT /api/settings/notification-preferences can toggle email_weekly_digest",
+    "Backend regression: POST /api/ai/smart-insights still works",
+    "Backend regression: POST /api/ai/release-strategy still works",
+    "Backend regression: POST /api/ai/strategies/export-pdf still works",
+    "Frontend: Fan Analytics page (/fan-analytics) shows 'Weekly Digest Email' section with data-testid='weekly-digest-section'",
+    "Frontend: 'Preview' button (data-testid='preview-digest-btn') opens modal showing digest email HTML",
+    "Frontend: Digest preview modal shows KALMORI branding, streaming stats, top markets, top platforms, AI insights",
+    "Frontend: 'Send Now' button (data-testid='send-digest-btn') triggers digest send with loading state",
+    "Frontend: Toast notification shows 'Digest generated' message after send",
+    "Frontend: Settings > Notifications tab shows 'Weekly Performance Digest' toggle (data-testid='pref-email_weekly_digest')",
+    "Frontend: Toggle (data-testid='toggle-email_weekly_digest') can enable/disable weekly digest emails"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iteration28_weekly_digest.py",
+    "/app/test_reports/pytest/pytest_results_iteration28.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fixed bug: GET /api/settings/notification-preferences now returns email_weekly_digest field for existing users (added default value fallback)",
+    "Digest HTML is ~8KB with gradient header, 3-column stats, top markets/platforms tables, AI insights, release badges, CTA button",
+    "Email delivery shows 'pending' since Resend sender domain may not be verified - endpoint logic and HTML generation work correctly",
+    "All data-testid attributes properly implemented for testing"
+  ],
+  "updated_files": [
+    "/app/backend/server.py",
+    "/app/backend/tests/test_iteration28_weekly_digest.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin": {
+      "email": "admin@tunedrop.com",
+      "password": "Admin123!",
+      "role": "admin"
+    }
+  },
+  "seed_data_creation": "No new seed data created",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 28 tested the NEW Weekly Digest Email feature. Backend endpoints: POST /api/digest/send (sends digest email, logs to digest_log collection), POST /api/digest/preview (returns HTML preview), GET /api/digest/history (returns sent digest history). Notification preferences updated to include email_weekly_digest field. Frontend: Weekly Digest section on Fan Analytics page (data-testid='weekly-digest-section') with Preview/Send buttons. Preview modal shows branded HTML email. Settings > Notifications tab has 'Weekly Performance Digest' toggle. Fixed minor bug where email_weekly_digest wasn't returned for existing users. All previous AI endpoints still work (regression verified).",
+  "mocked_apis": {
+    "Resend Email": "CONFIGURED but sender domain may not be verified - endpoint logic works, email delivery pending",
+    "AI Smart Insights": "NOT MOCKED - uses real Emergent LLM Key (GPT-4o)",
+    "AI Release Strategy": "NOT MOCKED - uses real Emergent LLM Key (GPT-4o)",
+    "PDF Export": "NOT MOCKED - uses real reportlab library",
+    "DSP Streaming Data": "SIMULATED (stream_events collection)",
+    "Stripe": "Uses test API key"
+  },
+  "features_verified": {
+    "digest_send": {
+      "endpoint": "POST /api/digest/send",
+      "response": {
+        "message": "Weekly digest sent! or Digest generated but email delivery pending",
+        "email_sent": "boolean",
+        "stats": {
+          "streams_this_week": "int",
+          "streams_last_week": "int",
+          "growth": "float (percentage)",
+          "top_countries": "int (count)",
+          "insights_included": "int (count)"
+        }
+      },
+      "status": "Working"
+    },
+    "digest_preview": {
+      "endpoint": "POST /api/digest/preview",
+      "response": {
+        "html": "~8KB branded HTML email",
+        "stats": "same as digest_send"
+      },
+      "html_sections": ["KALMORI header", "This Week/Last Week/Growth stats", "Top Markets table", "Top Platforms table", "AI Smart Insights", "Release badges", "CTA button", "Unsubscribe link"],
+      "status": "Working"
+    },
+    "digest_history": {
+      "endpoint": "GET /api/digest/history",
+      "response": {
+        "history": "Array of digest log entries",
+        "total": "int"
+      },
+      "status": "Working"
+    },
+    "notification_preferences": {
+      "endpoints": ["GET /api/settings/notification-preferences", "PUT /api/settings/notification-preferences"],
+      "new_field": "email_weekly_digest (boolean, default true)",
+      "status": "Working"
+    },
+    "frontend_weekly_digest_section": {
+      "location": "Fan Analytics page (/fan-analytics)",
+      "data_testid": "weekly-digest-section",
+      "components": [
+        "Envelope icon with yellow background",
+        "Weekly Digest Email title and subtitle",
+        "Preview button (data-testid='preview-digest-btn')",
+        "Send Now button (data-testid='send-digest-btn')",
+        "Link to Settings > Notifications"
+      ],
+      "status": "Working"
+    },
+    "frontend_digest_preview_modal": {
+      "trigger": "Preview button click",
+      "components": [
+        "Modal header with stats summary",
+        "Close button (data-testid='close-digest-preview')",
+        "Rendered HTML email preview",
+        "Send This Digest button (data-testid='send-from-preview-btn')"
+      ],
+      "status": "Working"
+    },
+    "frontend_settings_notification_toggle": {
+      "location": "Settings > Notifications tab",
+      "data_testid": "pref-email_weekly_digest",
+      "toggle_testid": "toggle-email_weekly_digest",
+      "label": "Weekly Performance Digest",
+      "description": "AI-powered weekly email with streaming trends, top markets, and growth recommendations",
+      "status": "Working"
+    }
+  },
+  "bug_fixed": {
+    "issue": "GET /api/settings/notification-preferences did not return email_weekly_digest for existing users",
+    "root_cause": "Existing users had notification preferences stored without the new email_weekly_digest field",
+    "fix": "Added default value fallback in get_notification_prefs endpoint to ensure new fields have defaults for existing users",
+    "file_modified": "/app/backend/server.py",
+    "lines_modified": "1330-1349"
+  }
+}

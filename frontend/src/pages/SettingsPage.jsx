@@ -29,6 +29,7 @@ const NOTIF_PREF_LABELS = {
   email_collaborations: { label: 'Collaboration Invites', desc: 'Email when someone invites you to collaborate' },
   email_payments: { label: 'Payment Receipts', desc: 'Email receipts for purchases and subscriptions' },
   email_marketing: { label: 'Marketing & Tips', desc: 'Promotional emails and distribution tips' },
+  email_weekly_digest: { label: 'Weekly Performance Digest', desc: 'AI-powered weekly email with streaming trends, top markets, and growth recommendations' },
   push_releases: { label: 'Release Notifications', desc: 'In-app notifications for release status changes' },
   push_collaborations: { label: 'Collaboration Updates', desc: 'In-app notifications for collaboration activity' },
   push_payments: { label: 'Payment Alerts', desc: 'In-app notifications for payments and earnings' },

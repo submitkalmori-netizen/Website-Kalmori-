@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { API } from '../App';
 import DashboardLayout from '../components/DashboardLayout';
-import { Users, Globe, ChartLineUp, Clock, TrendUp, MusicNote, Lightning, CalendarBlank, MapPin, Rocket, Star, Target, ArrowRight, SpinnerGap, FloppyDisk, Trash, ArrowsLeftRight, X, CaretDown, CaretUp, BookmarkSimple, FilePdf } from '@phosphor-icons/react';
+import { Users, Globe, ChartLineUp, Clock, TrendUp, MusicNote, Lightning, CalendarBlank, MapPin, Rocket, Star, Target, ArrowRight, SpinnerGap, FloppyDisk, Trash, ArrowsLeftRight, X, CaretDown, CaretUp, BookmarkSimple, FilePdf, EnvelopeSimple, Eye } from '@phosphor-icons/react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
 
@@ -38,6 +38,9 @@ export default function FanAnalyticsPage() {
   const [smartInsights, setSmartInsights] = useState([]);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [lastAnalyzed, setLastAnalyzed] = useState(null);
+  const [digestSending, setDigestSending] = useState(false);
+  const [digestPreview, setDigestPreview] = useState(null);
+  const [showDigestPreview, setShowDigestPreview] = useState(false);
 
   useEffect(() => { fetchData(); fetchSavedStrategies(); fetchSmartInsights(); }, []);
 
@@ -78,6 +81,34 @@ export default function FanAnalyticsPage() {
       toast.error('Failed to generate insights');
     } finally {
       setInsightsLoading(false);
+    }
+  };
+
+  const sendTestDigest = async () => {
+    setDigestSending(true);
+    try {
+      const res = await axios.post(`${API}/digest/send`, {}, { withCredentials: true });
+      if (res.data.email_sent) {
+        toast.success('Weekly digest sent to your email!');
+      } else {
+        toast.info('Digest generated. Check your Resend configuration for delivery.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to send digest');
+    } finally {
+      setDigestSending(false);
+    }
+  };
+
+  const previewDigest = async () => {
+    try {
+      const res = await axios.post(`${API}/digest/preview`, {}, { withCredentials: true });
+      setDigestPreview(res.data);
+      setShowDigestPreview(true);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load digest preview');
     }
   };
 
@@ -341,6 +372,80 @@ export default function FanAnalyticsPage() {
             </div>
           )}
         </div>
+
+        {/* Weekly Digest Email Section */}
+        <div className="bg-[#111] border border-white/10 rounded-2xl p-6" data-testid="weekly-digest-section">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FFD700]/15 flex items-center justify-center">
+                <EnvelopeSimple className="w-5 h-5 text-[#FFD700]" weight="fill" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">Weekly Digest Email</h2>
+                <p className="text-xs text-gray-400">Get your performance summary delivered to your inbox every Monday</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={previewDigest}
+                className="px-3 py-2 border border-white/10 text-gray-400 text-sm rounded-lg hover:text-white hover:border-white/20 transition-colors flex items-center gap-1.5"
+                data-testid="preview-digest-btn"
+              >
+                <Eye className="w-4 h-4" /> Preview
+              </button>
+              <button
+                onClick={sendTestDigest}
+                disabled={digestSending}
+                className="px-4 py-2 bg-[#FFD700]/10 border border-[#FFD700]/30 text-[#FFD700] text-sm font-medium rounded-lg hover:bg-[#FFD700]/20 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                data-testid="send-digest-btn"
+              >
+                {digestSending ? (
+                  <><SpinnerGap className="w-4 h-4 animate-spin" /> Sending...</>
+                ) : (
+                  <><EnvelopeSimple className="w-4 h-4" /> Send Now</>
+                )}
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            Includes: stream counts, growth trends, top markets, top platforms, AI insights, and release updates.
+            Manage this in <a href="/settings" className="text-[#7C4DFF] hover:underline">Settings &gt; Notifications</a>.
+          </p>
+        </div>
+
+        {/* Digest Preview Modal */}
+        {showDigestPreview && digestPreview && (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowDigestPreview(false)}>
+            <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <EnvelopeSimple className="w-5 h-5 text-[#FFD700]" />
+                  <h3 className="text-sm font-bold text-white">Digest Preview</h3>
+                  {digestPreview.stats && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      {digestPreview.stats.streams_this_week?.toLocaleString()} streams | {digestPreview.stats.growth > 0 ? '+' : ''}{digestPreview.stats.growth}%
+                    </span>
+                  )}
+                </div>
+                <button onClick={() => setShowDigestPreview(false)} className="text-gray-500 hover:text-white" data-testid="close-digest-preview">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                <div className="bg-white rounded-xl overflow-hidden" dangerouslySetInnerHTML={{ __html: digestPreview.html }} />
+              </div>
+              <div className="p-4 border-t border-white/10 flex justify-end gap-2">
+                <button
+                  onClick={() => { setShowDigestPreview(false); sendTestDigest(); }}
+                  className="px-4 py-2 bg-gradient-to-r from-[#7C4DFF] to-[#E040FB] text-white text-sm font-semibold rounded-lg hover:opacity-90 flex items-center gap-1.5"
+                  data-testid="send-from-preview-btn"
+                >
+                  <EnvelopeSimple className="w-4 h-4" /> Send This Digest
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* AI Release Strategy Section */}
         <div className="bg-gradient-to-br from-[#1a0a2e] to-[#111] border border-[#7C4DFF]/30 rounded-2xl p-6" data-testid="ai-strategy-section">

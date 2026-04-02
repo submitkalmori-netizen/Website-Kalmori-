@@ -209,3 +209,233 @@ async def send_payment_received_email(user_email: str, user_name: str, amount: f
     <p>Thank you for using Kalmori!</p>
     </div></div>"""
     await send_email(user_email, f"Payment Received: ${amount:.2f}", html)
+
+
+async def _build_digest_data(user):
+    """Gather all streaming analytics data for the weekly digest"""
+    now = datetime.now(timezone.utc)
+    week_ago = (now - timedelta(days=7)).isoformat()
+    two_weeks_ago = (now - timedelta(days=14)).isoformat()
+
+    recent = await db.stream_events.find(
+        {"artist_id": user["id"], "timestamp": {"$gte": week_ago}}, {"_id": 0}
+    ).to_list(5000)
+    prev = await db.stream_events.find(
+        {"artist_id": user["id"], "timestamp": {"$gte": two_weeks_ago, "$lt": week_ago}}, {"_id": 0}
+    ).to_list(5000)
+
+    recent_total = len(recent)
+    prev_total = len(prev) or 1
+    growth = round((recent_total - prev_total) / prev_total * 100, 1)
+
+    # Country breakdown
+    countries = {}
+    for e in recent:
+        c = e.get("country", "Unknown")
+        countries[c] = countries.get(c, 0) + 1
+    top_countries = sorted(countries.items(), key=lambda x: -x[1])[:5]
+
+    # Platform breakdown
+    platforms = {}
+    for e in recent:
+        p = e.get("platform", "Unknown")
+        platforms[p] = platforms.get(p, 0) + 1
+    top_platforms = sorted(platforms.items(), key=lambda x: -x[1])[:5]
+
+    # Recent releases
+    releases = await db.releases.find(
+        {"artist_id": user["id"]}, {"_id": 0, "title": 1, "status": 1, "created_at": 1}
+    ).sort("created_at", -1).to_list(3)
+
+    # Pre-save campaigns
+    campaigns = await db.presave_campaigns.find(
+        {"artist_id": user["id"]}, {"_id": 0, "title": 1, "subscriber_count": 1}
+    ).to_list(5)
+    total_presave = sum(c.get("subscriber_count", 0) for c in campaigns)
+
+    # AI insights from this week
+    insights = await db.notifications.find(
+        {"user_id": user["id"], "type": "ai_insight"},
+        {"_id": 0, "message": 1, "action_suggestion": 1, "category": 1, "priority": 1, "metric_value": 1}
+    ).sort("created_at", -1).to_list(5)
+
+    country_names = {"US": "United States", "UK": "United Kingdom", "NG": "Nigeria", "DE": "Germany", "CA": "Canada", "AU": "Australia", "BR": "Brazil", "JP": "Japan", "FR": "France", "IN": "India"}
+
+    return {
+        "recent_total": recent_total,
+        "prev_total": prev_total,
+        "growth": growth,
+        "top_countries": [(country_names.get(c, c), cnt) for c, cnt in top_countries],
+        "top_platforms": top_platforms,
+        "releases": releases,
+        "total_presave": total_presave,
+        "insights": insights,
+        "week_ending": now.strftime("%B %d, %Y"),
+    }
+
+
+def _build_digest_html(user, data):
+    """Build branded HTML email for weekly digest"""
+    artist = user.get("artist_name") or user.get("name", "Artist")
+    growth_color = "#4CAF50" if data["growth"] >= 0 else "#F44336"
+    growth_arrow = "+" if data["growth"] >= 0 else ""
+
+    # Country rows
+    country_rows = ""
+    for name, cnt in data["top_countries"]:
+        pct = round(cnt / max(data["recent_total"], 1) * 100, 1)
+        country_rows += f'<tr><td style="padding:6px 0;color:#ccc;font-size:13px;">{name}</td><td style="padding:6px 0;text-align:right;color:#fff;font-weight:bold;font-size:13px;">{cnt:,}</td><td style="padding:6px 0;text-align:right;color:#888;font-size:12px;">{pct}%</td></tr>'
+
+    # Platform rows
+    platform_rows = ""
+    for name, cnt in data["top_platforms"]:
+        pct = round(cnt / max(data["recent_total"], 1) * 100, 1)
+        platform_rows += f'<tr><td style="padding:6px 0;color:#ccc;font-size:13px;">{name}</td><td style="padding:6px 0;text-align:right;color:#fff;font-weight:bold;font-size:13px;">{cnt:,}</td><td style="padding:6px 0;text-align:right;color:#888;font-size:12px;">{pct}%</td></tr>'
+
+    # Insights section
+    insights_html = ""
+    if data["insights"]:
+        insights_items = ""
+        for ins in data["insights"][:3]:
+            cat = ins.get("category", "growth")
+            cat_colors = {"growth": "#1DB954", "geographic": "#E040FB", "platform": "#7C4DFF", "timing": "#FFD700", "campaign": "#FF6B6B"}
+            color = cat_colors.get(cat, "#7C4DFF")
+            metric = f'<span style="color:#FFD700;font-size:11px;font-weight:bold;"> {ins.get("metric_value", "")}</span>' if ins.get("metric_value") else ""
+            action = f'<p style="color:#7C4DFF;font-size:12px;margin:4px 0 0;">&rarr; {ins["action_suggestion"]}</p>' if ins.get("action_suggestion") else ""
+            insights_items += f'''<div style="background:#0a0a0a;border-left:3px solid {color};border-radius:6px;padding:12px;margin-bottom:8px;">
+            <p style="color:#fff;font-size:13px;margin:0;">{ins.get("message", "")}{metric}</p>{action}</div>'''
+
+        insights_html = f'''<div style="margin-top:24px;">
+        <h2 style="color:#E040FB;font-size:16px;margin:0 0 12px;">AI Smart Insights</h2>
+        {insights_items}</div>'''
+
+    # Release updates
+    releases_html = ""
+    if data["releases"]:
+        rel_items = ""
+        for r in data["releases"]:
+            status_colors = {"approved": "#4CAF50", "pending": "#FFD700", "distributed": "#1DB954", "draft": "#888"}
+            sc = status_colors.get(r.get("status", ""), "#888")
+            rel_items += f'<span style="display:inline-block;background:{sc}20;color:{sc};padding:4px 10px;border-radius:20px;font-size:11px;margin:2px 4px;font-weight:bold;">{r.get("title","Untitled")} &bull; {r.get("status","draft").title()}</span>'
+        releases_html = f'''<div style="margin-top:20px;">
+        <h2 style="color:#7C4DFF;font-size:16px;margin:0 0 12px;">Your Releases</h2>
+        <div>{rel_items}</div></div>'''
+
+    html = f'''<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#000;color:#fff;border-radius:16px;overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#7C4DFF 0%,#E040FB 50%,#FF6B6B 100%);padding:36px 30px;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:28px;letter-spacing:6px;font-weight:800;">KALMORI</h1>
+        <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">Weekly Performance Digest</p>
+        <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:12px;">Week ending {data["week_ending"]}</p>
+    </div>
+    <div style="padding:30px;">
+        <p style="color:#ccc;font-size:14px;margin:0 0 24px;">Hi {artist},</p>
+        <p style="color:#999;font-size:13px;margin:0 0 20px;">Here's your weekly streaming performance and AI-powered recommendations:</p>
+
+        <div style="display:flex;gap:12px;margin-bottom:24px;">
+            <div style="flex:1;background:#111;border:1px solid #222;border-radius:12px;padding:16px;text-align:center;">
+                <p style="color:#888;font-size:11px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">This Week</p>
+                <p style="color:#fff;font-size:24px;font-weight:bold;margin:0;">{data["recent_total"]:,}</p>
+                <p style="color:#888;font-size:11px;margin:2px 0 0;">streams</p>
+            </div>
+            <div style="flex:1;background:#111;border:1px solid #222;border-radius:12px;padding:16px;text-align:center;">
+                <p style="color:#888;font-size:11px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Last Week</p>
+                <p style="color:#fff;font-size:24px;font-weight:bold;margin:0;">{data["prev_total"]:,}</p>
+                <p style="color:#888;font-size:11px;margin:2px 0 0;">streams</p>
+            </div>
+            <div style="flex:1;background:#111;border:1px solid #222;border-radius:12px;padding:16px;text-align:center;">
+                <p style="color:#888;font-size:11px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Growth</p>
+                <p style="color:{growth_color};font-size:24px;font-weight:bold;margin:0;">{growth_arrow}{data["growth"]}%</p>
+                <p style="color:#888;font-size:11px;margin:2px 0 0;">vs last week</p>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+                <h2 style="color:#E040FB;font-size:14px;margin:0 0 8px;">Top Markets</h2>
+                <table style="width:100%;border-collapse:collapse;">{country_rows}</table>
+            </div>
+            <div style="flex:1;">
+                <h2 style="color:#1DB954;font-size:14px;margin:0 0 8px;">Top Platforms</h2>
+                <table style="width:100%;border-collapse:collapse;">{platform_rows}</table>
+            </div>
+        </div>
+
+        {insights_html}
+        {releases_html}
+
+        {f'<p style="color:#888;font-size:12px;margin-top:16px;">Pre-Save Subscribers: <strong style="color:#FFD700;">{data["total_presave"]}</strong></p>' if data["total_presave"] > 0 else ''}
+
+        <div style="text-align:center;margin:28px 0 16px;">
+            <a href="{FRONTEND_URL}/fan-analytics" style="background:linear-gradient(90deg,#7C4DFF,#E040FB);color:white;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:14px;display:inline-block;">View Full Analytics</a>
+        </div>
+
+        <p style="color:#555;font-size:11px;text-align:center;margin:20px 0 0;">You're receiving this because you enabled Weekly Digest in your notification settings.<br/>
+        <a href="{FRONTEND_URL}/settings" style="color:#7C4DFF;text-decoration:none;">Manage preferences</a></p>
+    </div>
+</div>'''
+    return html
+
+
+@email_router.post("/digest/send")
+async def send_weekly_digest(request: Request):
+    """Send a weekly digest email to the current user (manual trigger or test)"""
+    from server import get_current_user
+    user = await get_current_user(request)
+
+    data = await _build_digest_data(user)
+    html = _build_digest_html(user, data)
+    subject = f"Kalmori Weekly Digest - {data['week_ending']} | {data['recent_total']:,} streams"
+
+    sent = await send_email(user["email"], subject, html)
+
+    # Log digest send
+    await db.digest_log.insert_one({
+        "id": f"digest_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"],
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "streams_this_week": data["recent_total"],
+        "growth": data["growth"],
+        "email_sent": sent,
+    })
+
+    return {
+        "message": "Weekly digest sent!" if sent else "Digest generated but email delivery pending (check Resend config)",
+        "email_sent": sent,
+        "stats": {
+            "streams_this_week": data["recent_total"],
+            "streams_last_week": data["prev_total"],
+            "growth": data["growth"],
+            "top_countries": len(data["top_countries"]),
+            "insights_included": len(data["insights"]),
+        }
+    }
+
+
+@email_router.post("/digest/preview")
+async def preview_weekly_digest(request: Request):
+    """Preview the weekly digest HTML without sending"""
+    from server import get_current_user
+    user = await get_current_user(request)
+    data = await _build_digest_data(user)
+    html = _build_digest_html(user, data)
+    return {
+        "html": html,
+        "stats": {
+            "streams_this_week": data["recent_total"],
+            "streams_last_week": data["prev_total"],
+            "growth": data["growth"],
+            "top_countries": len(data["top_countries"]),
+            "insights_included": len(data["insights"]),
+        }
+    }
+
+
+@email_router.get("/digest/history")
+async def get_digest_history(request: Request):
+    """Get the history of sent weekly digests"""
+    from server import get_current_user
+    user = await get_current_user(request)
+    history = await db.digest_log.find(
+        {"user_id": user["id"]}, {"_id": 0}
+    ).sort("sent_at", -1).to_list(20)
+    return {"history": history, "total": len(history)}
