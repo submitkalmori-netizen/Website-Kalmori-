@@ -583,6 +583,127 @@ async def get_trending(request: Request):
     trending.sort(key=lambda x: x["streams_this_week"], reverse=True)
     return {"trending": trending[:10], "period": "last_7_days"}
 
+@api_router.get("/analytics/leaderboard")
+async def get_release_leaderboard(request: Request):
+    """Release Performance Leaderboard with sparkline data and hot streak detection"""
+    user = await get_current_user(request)
+    now = datetime.now(timezone.utc)
+    week_ago = (now - timedelta(days=7)).isoformat()
+    two_weeks_ago = (now - timedelta(days=14)).isoformat()
+
+    releases = await db.releases.find({"artist_id": user["id"]}, {"_id": 0, "id": 1, "title": 1, "genre": 1, "release_type": 1, "cover_art_url": 1, "status": 1, "created_at": 1}).to_list(100)
+
+    # Aggregate streams per release
+    release_pipeline = [
+        {"$match": {"artist_id": user["id"]}},
+        {"$group": {"_id": "$release_id", "total_streams": {"$sum": 1}, "total_revenue": {"$sum": "$revenue"}, "title": {"$first": "$release_title"}}}
+    ]
+    stream_data = {r["_id"]: r for r in await db.stream_events.aggregate(release_pipeline).to_list(200)}
+
+    # This week streams per release
+    recent_pipeline = [
+        {"$match": {"artist_id": user["id"], "timestamp": {"$gte": week_ago}}},
+        {"$group": {"_id": "$release_id", "streams": {"$sum": 1}, "revenue": {"$sum": "$revenue"}}}
+    ]
+    recent_data = {r["_id"]: r for r in await db.stream_events.aggregate(recent_pipeline).to_list(200)}
+
+    # Previous week streams per release
+    prev_pipeline = [
+        {"$match": {"artist_id": user["id"], "timestamp": {"$gte": two_weeks_ago, "$lt": week_ago}}},
+        {"$group": {"_id": "$release_id", "streams": {"$sum": 1}}}
+    ]
+    prev_data = {r["_id"]: r for r in await db.stream_events.aggregate(prev_pipeline).to_list(200)}
+
+    # Daily sparkline for each release (last 14 days)
+    sparkline_pipeline = [
+        {"$match": {"artist_id": user["id"], "timestamp": {"$gte": (now - timedelta(days=14)).isoformat()}}},
+        {"$group": {"_id": {"release_id": "$release_id", "day": {"$substr": ["$timestamp", 0, 10]}}, "count": {"$sum": 1}}},
+        {"$sort": {"_id.day": 1}}
+    ]
+    sparkline_raw = await db.stream_events.aggregate(sparkline_pipeline).to_list(5000)
+    sparklines = {}
+    for s in sparkline_raw:
+        rid = s["_id"]["release_id"]
+        if rid not in sparklines:
+            sparklines[rid] = {}
+        sparklines[rid][s["_id"]["day"]] = s["count"]
+
+    # Top platform per release
+    top_platform_pipeline = [
+        {"$match": {"artist_id": user["id"]}},
+        {"$group": {"_id": {"release_id": "$release_id", "platform": "$platform"}, "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    top_plat_raw = await db.stream_events.aggregate(top_platform_pipeline).to_list(1000)
+    top_platforms = {}
+    for tp in top_plat_raw:
+        rid = tp["_id"]["release_id"]
+        if rid not in top_platforms:
+            top_platforms[rid] = tp["_id"]["platform"]
+
+    leaderboard = []
+    for rel in releases:
+        rid = rel["id"]
+        sd = stream_data.get(rid, {})
+        total = sd.get("total_streams", 0)
+        revenue = round(sd.get("total_revenue", 0), 2)
+        this_week = recent_data.get(rid, {}).get("streams", 0)
+        last_week = prev_data.get(rid, {}).get("streams", 0) or 1
+        growth = round((this_week - last_week) / last_week * 100, 1) if last_week > 0 else 0.0
+
+        # Build sparkline array (14 days)
+        spark_data = sparklines.get(rid, {})
+        spark = []
+        for i in range(13, -1, -1):
+            day = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+            spark.append(spark_data.get(day, 0))
+
+        # Hot streak: 3+ consecutive days of growth
+        hot_streak = False
+        consecutive_growth = 0
+        for j in range(1, len(spark)):
+            if spark[j] > spark[j-1] and spark[j] > 0:
+                consecutive_growth += 1
+                if consecutive_growth >= 3:
+                    hot_streak = True
+                    break
+            else:
+                consecutive_growth = 0
+
+        # Momentum score
+        recent_avg = sum(spark[-7:]) / 7 if spark else 0
+        prev_avg = sum(spark[:7]) / 7 if spark else 0
+        momentum = round((recent_avg - prev_avg) / max(prev_avg, 1) * 100, 1)
+
+        leaderboard.append({
+            "release_id": rid,
+            "title": rel.get("title", sd.get("title", "Untitled")),
+            "genre": rel.get("genre", ""),
+            "release_type": rel.get("release_type", "single"),
+            "cover_art_url": rel.get("cover_art_url"),
+            "status": rel.get("status", "draft"),
+            "total_streams": total,
+            "total_revenue": revenue,
+            "streams_this_week": this_week,
+            "streams_last_week": last_week if last_week != 1 or prev_data.get(rid) else 0,
+            "growth_percent": growth,
+            "sparkline": spark,
+            "hot_streak": hot_streak,
+            "momentum": momentum,
+            "top_platform": top_platforms.get(rid, "N/A"),
+        })
+
+    leaderboard.sort(key=lambda x: x["total_streams"], reverse=True)
+    # Add rank
+    for i, item in enumerate(leaderboard):
+        item["rank"] = i + 1
+
+    return {
+        "leaderboard": leaderboard,
+        "total_releases": len(leaderboard),
+        "active_releases": sum(1 for r in leaderboard if r["total_streams"] > 0),
+    }
+
 # Per-stream rates by platform (industry average estimates in USD)
 PLATFORM_RATES = {
     "Spotify": 0.004, "Apple Music": 0.008, "YouTube Music": 0.002,
