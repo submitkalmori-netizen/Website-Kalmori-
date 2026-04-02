@@ -6,7 +6,7 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 ## Architecture
 - **Frontend**: React + Tailwind CSS + Shadcn/UI + Recharts + Phosphor Icons
 - **Backend**: FastAPI (modularized: server.py + core.py + /routes/)
-- **Database**: MongoDB (15+ collections)
+- **Database**: MongoDB (15+ collections including saved_strategies)
 - **Storage**: Emergent Object Storage
 - **Payments**: Stripe + PayPal
 - **Auth**: JWT + Google Social Login + reCAPTCHA v2
@@ -37,12 +37,20 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - Platform Engagement donut chart, Peak Listening Hours bar chart
 - Pre-save subscriber tracking, campaign analytics
 
-### AI Release Strategy (NEW - Apr 2026)
+### AI Release Strategy (Apr 2026)
 - AI-powered release strategy recommendations using OpenAI GPT-4o
 - Analyzes fan analytics: geography, peak hours, platform engagement, pre-save subs
 - Returns: optimal release day/time, platform tactics, geographic targeting, pre-release timeline, promotion tips
-- Beautiful UI section at bottom of Fan Analytics page with input fields and results display
+- UI section at bottom of Fan Analytics page with input fields and results display
 - Fallback strategy when AI unavailable
+
+### Save & Compare Strategies (Apr 2026)
+- Save generated strategies with custom labels to MongoDB
+- View all saved strategies in a scrollable panel
+- Delete saved strategies with confirmation toast
+- Compare mode: select any 2 strategies for side-by-side comparison
+- Compare view shows: Best Day, Best Time, Streams Analyzed, Top Platform, Top Country, Est. First Week, Platform Priorities, Timeline Steps
+- Highlights differences between strategies in accent color
 
 ### Notifications & Communication
 - Push Notifications (bell + dropdown + 30s polling)
