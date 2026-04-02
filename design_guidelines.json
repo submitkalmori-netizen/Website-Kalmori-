@@ -1,90 +1,127 @@
 {
   "theme": "dark",
-  "archetype": "Archetype 4: Swiss & High-Contrast",
-  "design_philosophy": "Tactical Minimalism for the Creator Economy. A command-center feel mixing high-density data clarity with emotional, high-contrast visual tension.",
+  "archetype": "5",
+  "archetype_name": "Jewel & Luxury (Cinematic Artist Showcase)",
+  "design_philosophy": "A highly immersive, mobile-first 'Link-in-Bio' experience that feels like an exclusive artist launchpad. Dark premium aesthetic driven by cinematic lighting, deep shadows, and neon highlights. The layout breaks the traditional Linktree grid by using atmospheric background blending, glassmorphic floating cards, and high-contrast typography to draw attention to music releases and pre-saves.",
   "colors": {
-    "background": "#0A0A0A",
-    "surface": "#141414",
-    "surface_hover": "#1E1E1E",
-    "text_primary": "#FFFFFF",
-    "text_secondary": "#A1A1AA",
-    "text_muted": "#71717A",
-    "primary_accent": "#FF3B30",
-    "secondary_accent": "#FFCC00",
-    "data_blue": "#007AFF",
-    "border": "rgba(255, 255, 255, 0.1)",
-    "border_hover": "rgba(255, 255, 255, 0.25)"
+    "background": {
+      "base": "#0A0A0A",
+      "surface_card": "#141414",
+      "surface_glass": "rgba(20, 20, 20, 0.6)"
+    },
+    "accents": {
+      "primary": "#7C4DFF",
+      "secondary": "#E040FB",
+      "alert_cta": "#FF3B30",
+      "highlight": "#FFD700"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "rgba(255, 255, 255, 0.7)",
+      "tertiary": "rgba(255, 255, 255, 0.4)"
+    },
+    "borders": {
+      "subtle": "rgba(255, 255, 255, 0.1)",
+      "glow": "rgba(124, 77, 255, 0.4)"
+    }
   },
   "typography": {
-    "heading_font": "Cabinet Grotesk",
-    "body_font": "IBM Plex Sans",
-    "mono_font": "JetBrains Mono",
+    "headings": {
+      "font_family": "Outfit, sans-serif",
+      "weights": ["600", "800"],
+      "tracking": "tracking-tighter",
+      "usage": "Artist Name, Section Headers (e.g., 'Latest Releases')"
+    },
+    "body": {
+      "font_family": "Manrope, sans-serif",
+      "weights": ["400", "500"],
+      "tracking": "tracking-normal",
+      "usage": "Bio text, track titles, secondary labels"
+    },
     "scale": {
-      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter font-black",
-      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-bold",
-      "h3": "text-xl sm:text-2xl tracking-tight font-medium",
-      "h4": "text-lg sm:text-xl font-medium",
-      "body": "text-base leading-relaxed",
-      "small": "text-sm",
-      "overline": "text-xs uppercase tracking-[0.2em] font-semibold"
+      "h1": "text-4xl sm:text-5xl font-extrabold tracking-tighter",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "body": "text-base leading-relaxed text-white/70",
+      "small": "text-sm uppercase tracking-[0.2em] text-white/50"
     }
   },
   "spacing_and_layout": {
-    "philosophy": "Mode B: THE 'CONTROL ROOM' GRID for Dashboard. High density, structural clarity.",
-    "container_padding": "p-6 md:p-8",
-    "grid_dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6",
-    "border_radius": "rounded-md",
-    "alignment": "Left-aligned for all dense content, paragraphs, and tabular data. Optical alignment prioritized over geometric."
-  },
-  "surfaces_and_micro_themes": {
-    "cards": "Flat background, 1px solid border (border-white/10), no soft shadows. Sharp and structural.",
-    "headers": "Crystal Glass: bg-[#0A0A0A]/60 backdrop-blur-xl border-b border-white/10.",
-    "interactive_elements": "Slight lift (-translate-y-1) on hover, border color darkens/brightens to border-white/30. Text color must be explicitly set on hover."
+    "philosophy": "Mobile-first, single-column stack. Heavy use of vertical rhythm to separate the hero identity from the actionable links. Elements must breathe with generous padding.",
+    "container": "max-w-xl mx-auto px-4 sm:px-6 w-full pb-24",
+    "gaps": "gap-4 for related items (cards), gap-12 for distinct sections",
+    "surfaces": [
+      {
+        "name": "Glass Card",
+        "classes": "bg-[#141414]/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg transition-all duration-300"
+      },
+      {
+        "name": "Pre-save Card",
+        "classes": "relative bg-[#141414] rounded-2xl border border-white/10 overflow-hidden group"
+      }
+    ]
   },
   "components": {
-    "strategy": "Shadcn UI heavily customized to remove the default Vercel look. Use HTML/Tailwind for marketing hero.",
-    "buttons": "Sharp corners or max 8px radius. High contrast. Primary: bg-[#FF3B30] text-white hover:bg-[#FF3B30]/90. Secondary: border border-white/20 hover:bg-white/10.",
-    "forms": "Inputs with flat backgrounds, 1px border. Focus states must have higher contrast (ring-2 ring-white/30).",
-    "tables": "Dense. border-collapse. Bottom borders on rows only. Hover states on rows.",
-    "charts": "Recharts/Shadcn charts. Use primary_accent, secondary_accent, and data_blue for data series. No full-area gradients, use clean lines."
-  },
-  "motion_and_interactions": {
-    "hover_states": "Crisp transitions. transition-all duration-200 ease-in-out.",
-    "focus_states": "Accessibility first. High contrast focus rings.",
-    "page_transitions": "Staggered entrance animations for dashboard lists using framer-motion."
-  },
-  "media_and_assets": {
-    "icon_library": "@phosphor-icons/react",
-    "image_urls": {
-      "hero_background": {
-        "url": "https://images.pexels.com/photos/196652/pexels-photo-196652.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Energetic dark concert crowd for marketing hero section."
-      },
-      "artist_profile_placeholder": {
-        "url": "https://images.pexels.com/photos/5749200/pexels-photo-5749200.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Music producer in studio - use as default avatar or profile header background."
-      },
-      "album_art_placeholder": {
-        "url": "https://images.unsplash.com/photo-1655931546470-7b2e167b5fef?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwyfHxtdXNpYyUyMHByb2R1Y2VyJTIwc3R1ZGlvJTIwZGFya3xlbnwwfHx8fDE3NzUwODE2Mjh8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Headphones on keyboard - placeholder for release cover art."
-      },
-      "marketing_feature_1": {
-        "url": "https://images.unsplash.com/photo-1765224747184-05d35f23859a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwyfHxsaXZlJTIwY29uY2VydCUyMGNyb3dkJTIwZGFya3xlbnwwfHx8fDE3NzUwODE2Mjh8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Hands raised concert - use for the 'Distribution & Audience' feature section."
-      }
+    "hero_section": {
+      "layout": "Centered stack. Background image anchored at top with massive bottom gradient fade to #0A0A0A.",
+      "avatar": "w-32 h-32 md:w-40 md:h-40 rounded-full border border-white/20 shadow-[0_0_40px_rgba(124,77,255,0.3)] object-cover mb-6",
+      "title": "Gradient text 'KALMORI' style: bg-clip-text text-transparent bg-gradient-to-r from-[#7C4DFF] to-[#E040FB]",
+      "bio": "Max 3 lines, centered, text-white/70"
+    },
+    "social_links": {
+      "layout": "Horizontal flex row, centered, wrapping if needed. gap-4",
+      "icon_style": "w-12 h-12 rounded-full bg-[#141414] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white hover:text-black transition-colors"
+    },
+    "release_card": {
+      "layout": "Flex row (image left, text right). p-3 gap-4. Glassmorphism surface.",
+      "image": "w-16 h-16 rounded-lg object-cover",
+      "action": "Right-aligned play button or 'Listen' text. Hovering card adds a subtle border glow in accent colors."
+    },
+    "pre_save_card": {
+      "layout": "Bento-style or feature card. Use 'Tracing Beam' or subtle animated gradient background behind the border to indicate 'upcoming/exclusive' status.",
+      "cta_button": "w-full py-3 bg-gradient-to-r from-[#7C4DFF] to-[#E040FB] text-white font-bold rounded-full hover:shadow-[0_0_20px_rgba(224,64,251,0.4)] transition-all"
+    },
+    "sticky_cta": {
+      "layout": "Fixed bottom banner for 'Share Link' or 'Follow'.",
+      "style": "backdrop-blur-2xl bg-[#0A0A0A]/80 border-t border-white/10 p-4 flex justify-center w-full z-50 max-w-xl mx-auto left-0 right-0"
     }
   },
-  "accessibility_and_testing": {
-    "contrast": "Ensure minimum 4.5:1 for normal text.",
-    "testing": "All interactive elements MUST include data-testid attribute (e.g., data-testid='upload-release-button')."
+  "motion_and_interactions": {
+    "hover_states": "Cards lift slightly (-translate-y-1) and borders brighten to border-white/30 or accent color. Social icons invert (bg-white text-black).",
+    "click_states": "Scale down (scale-95) for tactile feedback.",
+    "page_load": "Staggered fade-in. Hero loads first, followed by social row, then music cards sliding up slightly (framer-motion)."
   },
-  "instructions_to_main_agent": [
-    "Strictly adhere to the dark theme and high-contrast color palette.",
-    "Do not use Inter, Roboto, or generic sans-serif fonts for headings. Use Cabinet Grotesk.",
-    "Do not use purple or teal. Rely on Signal Red (#FF3B30) and pure white/greys.",
-    "Use JetBrains Mono for all ISRC, UPC, financial figures, and royalty numbers.",
-    "Dashboard cards should not have soft shadows; use a 1px solid border with a flat background.",
-    "Install and use @phosphor-icons/react for icons.",
-    "Implement the UI using Shadcn components but strip the default rounded soft look to match the 'Tactical Minimalism' geometry."
-  ]
+  "media": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1580529352963-57ac28432755?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDZ8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGNpbmVtYXRpYyUyMG5lb24lMjBjb25jZXJ0JTIwc3RhZ2UlMjBsaWdodGluZ3xlbnwwfHx8fDE3NzUxNjk0NDR8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract purple and black cinematic concert light to use as the top background. MUST fade smoothly into the black page body."
+    },
+    "artist_avatar": {
+      "url": "https://images.pexels.com/photos/3201195/pexels-photo-3201195.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Moody musician portrait with helmet and acoustic guitar"
+    },
+    "album_covers": [
+      {
+        "url": "https://images.unsplash.com/photo-1736183291646-c09346517ed6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBhbGJ1bSUyMGNvdmVyJTIwYXJ0JTIwZGFya3xlbnwwfHx8fDE3NzUxNjk0NDR8MA&ixlib=rb-4.1.0&q=85",
+        "title": "Midnight Echoes",
+        "description": "Abstract black and white wavy faces"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1608649443926-1e224443ef88?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBhbGJ1bSUyMGNvdmVyJTIwYXJ0JTIwZGFya3xlbnwwfHx8fDE3NzUxNjk0NDR8MA&ixlib=rb-4.1.0&q=85",
+        "title": "Neon Void",
+        "description": "Dark portrait shot"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1671509774803-1640e8853b50?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBhbGJ1bSUyMGNvdmVyJTIwYXJ0JTIwZGFya3xlbnwwfHx8fDE3NzUxNjk0NDR8MA&ixlib=rb-4.1.0&q=85",
+        "title": "Shattered Glass",
+        "description": "Abstract dark lighting fixture"
+      }
+    ]
+  },
+  "testing": {
+    "data_testid_rules": "All interactive elements MUST have `data-testid` attributes (e.g., `data-testid=\"artist-avatar\"`, `data-testid=\"social-link-spotify\"`, `data-testid=\"play-track-button\"`, `data-testid=\"presave-button\"`)."
+  },
+  "dependencies_to_install": [
+    "yarn add react-icons framer-motion lucide-react clsx tailwind-merge"
+  ],
+  "instructions_to_main_agent": "1. Set up a dark premium mobile-first wrapper (<main className='min-h-screen bg-[#0A0A0A] text-white relative'>). 2. Add the hero background image positioned absolute at top with a massive gradient overlay (bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/80 to-transparent) so it fades perfectly into the rest of the page. 3. Build a max-w-xl container in the center for all content. 4. Use Outfit for headings and Manrope for body. 5. Construct Social Links using react-icons (FaSpotify, FaApple, FaInstagram, etc). 6. Render Release Cards using glassmorphism borders and backgrounds. 7. Implement a striking Pre-Save campaign block with gradient CTA button. 8. NEVER use placeholder image URLs. Rely exclusively on the media URLs provided here. 9. Add data-testid to every button and link."
 }
