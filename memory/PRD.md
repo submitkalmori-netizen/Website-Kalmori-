@@ -6,13 +6,13 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 ## Architecture
 - **Frontend**: React + Tailwind CSS + Shadcn/UI + Recharts + Phosphor Icons
 - **Backend**: FastAPI (modularized: server.py + core.py + /routes/)
-- **Database**: MongoDB (15+ collections including saved_strategies)
+- **Database**: MongoDB (15+ collections)
 - **Storage**: Emergent Object Storage
 - **Payments**: Stripe + PayPal
 - **Auth**: JWT + Google Social Login + reCAPTCHA v2
 - **AI**: OpenAI GPT-4o via Emergent LLM Key
-- **Email**: Resend (configured)
-- **PDF**: reportlab (server-side PDF generation)
+- **Email**: Resend (configured with API key)
+- **PDF**: reportlab (server-side generation)
 
 ## All Completed Features
 
@@ -20,66 +20,49 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - JWT + Google Auth + reCAPTCHA v2, Admin Dashboard, Responsive dark premium UI
 
 ### Content & Distribution
-- Professional 4-tab Release Wizard (General Info, Tracks & Assets, Territory with 37 platforms, Summary)
-- UPC auto-generation, Copyright/Production lines, Booklet uploads, Volume management
-- Spotify Canvas, Content ID pages
+- Professional 4-tab Release Wizard, UPC auto-generation, Spotify Canvas, Content ID
 
 ### Commerce & Payments
 - Stripe subscriptions (4 tiers) + upgrade/downgrade, Beat catalog + Object Storage
-- Beat Purchase (4 license tiers), Download delivery, My Purchases page, Wallet system
+- Beat Purchase (4 license tiers), Download delivery, My Purchases, Wallet
 
 ### Analytics & Insights
-- Realistic DSP simulation engine (8 platforms, 14 countries, peak hours, growth curves)
-- Live Streaming Feed, Platform Breakdown, AI-powered insights, CSV import
-- Share Your Stats social cards with milestone tracking
+- DSP simulation engine (8 platforms, 14 countries), Streaming Feed, CSV import
+- Share Your Stats social cards
 
 ### Fan Analytics Dashboard
-- Listener Growth chart (30 days), Top Listener Countries with flag emojis
-- Platform Engagement donut chart, Peak Listening Hours bar chart
-- Pre-save subscriber tracking, campaign analytics
+- Listener Growth, Top Countries, Platform Engagement, Peak Hours
+- Pre-save tracking, campaign analytics
 
 ### AI Release Strategy
-- AI-powered release strategy recommendations using GPT-4o
-- Analyzes geography, peak hours, platform engagement, pre-save subs
-- Returns: optimal day/time, platform tactics, geographic targeting, timeline, tips
-- Fallback strategy when AI unavailable
+- GPT-4o powered recommendations: optimal day/time, platform tactics, geographic targeting, timeline, tips
 
 ### Save & Compare Strategies
-- Save strategies with custom labels, view/delete in scrollable panel
-- Compare mode: select 2 strategies for side-by-side analysis
-- Compares: Best Day, Time, Streams, Platform, Country, First Week, Priorities, Timeline
+- Save with labels, view/delete, compare 2 side-by-side
 
 ### Strategy Export to PDF
-- Server-side PDF generation with Kalmori branding via reportlab
-- Sections: release window, platform strategy, geographic targeting, timeline, tips
-- Export from current results or saved strategy cards
-- Filename: Kalmori_Strategy_{label}_{date}.pdf
+- Branded Kalmori PDF one-pager via reportlab
 
-### AI-Powered Smart Notifications (Apr 2026)
-- Analyzes 7-day streaming trends: country growth, platform shifts, peak hour changes
-- GPT-4o generates 3-5 actionable insights with categories (growth/geographic/platform/timing/campaign)
-- Each insight has: priority level, metric value, action suggestion
-- Stored as notifications with type='ai_insight' in unified notification system
-- Smart Insights section on Fan Analytics with "Analyze Trends" button
-- Notification bell shows AI insights with lightning bolt icon, "AI Insight" label, metric badges
+### AI-Powered Smart Notifications
+- 7-day trend analysis: country growth, platform shifts, peak hours
+- GPT-4o generates categorized insights (growth/geographic/platform/timing/campaign)
+- Lightning bolt badges in notification bell
+
+### Automated Weekly Digest Emails (Apr 2026)
+- Branded HTML email with: gradient header, 3-column stats (this week/last week/growth %), top markets table, top platforms table, AI insights with colored borders, release status badges, pre-save count, CTA button
+- Preview modal on Fan Analytics page to see email before sending
+- Send Now button for immediate delivery via Resend
+- Digest history tracking (digest_log collection)
+- "Weekly Performance Digest" toggle in Settings > Notifications
+- Endpoints: POST /api/digest/send, POST /api/digest/preview, GET /api/digest/history
 
 ### Notifications & Communication
 - Push Notifications (bell + dropdown + 30s polling)
-- 8 notification preferences (email + push toggles)
-- Resend email receipts (beat + subscription + collaboration templates)
+- 9 notification preferences (email + push toggles + weekly digest)
+- Resend email receipts
 
-### Collaborations
-- Invite system, Accept/Decline, Royalty split management
-
-### Beat Catalog Search/Filter
-- Search/filter by genre/mood/key/BPM/price, Sort options, Share buttons
-
-### Social Sharing & Pre-Save Campaigns
-- OG Meta Tags, Public share endpoints
-- Campaign manager with countdown timer, subscriber tracking
-
-### Integrations
-- Spotify for Artists connection placeholder (OAuth-ready)
+### Collaborations, Beat Search/Filter, Social Sharing, Pre-Save Campaigns
+- All fully implemented
 
 ## All Pages & Routes
 `/` `/login` `/register` `/instrumentals` `/dashboard` `/releases` `/releases/new` `/analytics` `/wallet` `/purchases` `/collaborations` `/presave-manager` `/fan-analytics` `/settings` `/presave/:id` `/spotify-canvas` `/content-id` `/admin/*`
