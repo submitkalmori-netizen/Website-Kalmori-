@@ -136,7 +136,7 @@ const AuthProvider = ({ children }) => {
 
   const register = async (data) => {
     const response = await api.register(
-      data.email, data.password, data.artist_name || data.name,
+      data.email, data.password, data.artist_name || data.name, data.name,
       data.user_role, data.legal_name, data.country,
       data.recaptcha_token, data.state, data.town, data.post_code
     );

@@ -19,10 +19,11 @@ class ApiService {
     return response.data;
   }
 
-  async register(email, password, artist_name, user_role, legal_name, country, recaptcha_token, state, town, post_code) {
+  async register(email, password, artist_name, name, user_role, legal_name, country, recaptcha_token, state, town, post_code) {
     const response = await axios.post(`${BASE_URL}/api/auth/register`, {
       email,
       password,
+      name: name || artist_name || '',
       artist_name,
       user_role: user_role || 'artist',
       legal_name: legal_name || '',
