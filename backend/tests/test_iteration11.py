@@ -218,7 +218,7 @@ class TestStripePayments:
         
         payload = {
             "release_id": release_id,
-            "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"
+            "origin_url": "https://artist-hub-219.preview.emergentagent.com"
         }
         response = requests.post(f"{BASE_URL}/api/payments/checkout", json=payload, headers=headers)
         

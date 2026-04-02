@@ -154,7 +154,7 @@ class TestSubscriptionCheckout:
             headers={"Authorization": f"Bearer {auth_token}"},
             json={
                 "plan": "rise",
-                "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"
+                "origin_url": "https://artist-hub-219.preview.emergentagent.com"
             }
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -173,7 +173,7 @@ class TestSubscriptionCheckout:
             headers={"Authorization": f"Bearer {auth_token}"},
             json={
                 "plan": "pro",
-                "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"
+                "origin_url": "https://artist-hub-219.preview.emergentagent.com"
             }
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -199,7 +199,7 @@ class TestSubscriptionCheckout:
             headers={"Authorization": f"Bearer {auth_token}"},
             json={
                 "plan": "free",
-                "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"
+                "origin_url": "https://artist-hub-219.preview.emergentagent.com"
             }
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -228,7 +228,7 @@ class TestSubscriptionCheckout:
             headers={"Authorization": f"Bearer {auth_token}"},
             json={
                 "plan": "invalid_plan",
-                "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"
+                "origin_url": "https://artist-hub-219.preview.emergentagent.com"
             }
         )
         assert response.status_code == 400, f"Expected 400, got {response.status_code}"
@@ -241,7 +241,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout",
             json={
                 "plan": "rise",
-                "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"
+                "origin_url": "https://artist-hub-219.preview.emergentagent.com"
             }
         )
         assert response.status_code == 401, f"Expected 401, got {response.status_code}"

@@ -113,7 +113,7 @@ class TestSubscriptionCheckout:
     def test_checkout_paid_plan_creates_stripe_url(self, auth_token):
         """POST /api/subscriptions/checkout with paid plan creates Stripe checkout"""
         response = requests.post(f"{BASE_URL}/api/subscriptions/checkout", 
-            json={"plan": "rise", "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"},
+            json={"plan": "rise", "origin_url": "https://artist-hub-219.preview.emergentagent.com"},
             headers={"Authorization": f"Bearer {auth_token}"})
         assert response.status_code == 200
         data = response.json()
@@ -124,7 +124,7 @@ class TestSubscriptionCheckout:
     def test_checkout_free_plan_no_stripe(self, auth_token):
         """POST /api/subscriptions/checkout with plan=free returns direct downgrade"""
         response = requests.post(f"{BASE_URL}/api/subscriptions/checkout", 
-            json={"plan": "free", "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"},
+            json={"plan": "free", "origin_url": "https://artist-hub-219.preview.emergentagent.com"},
             headers={"Authorization": f"Bearer {auth_token}"})
         assert response.status_code == 200
         data = response.json()
@@ -135,7 +135,7 @@ class TestSubscriptionCheckout:
     def test_checkout_invalid_plan(self, auth_token):
         """POST /api/subscriptions/checkout with invalid plan returns 400"""
         response = requests.post(f"{BASE_URL}/api/subscriptions/checkout", 
-            json={"plan": "invalid_plan", "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"},
+            json={"plan": "invalid_plan", "origin_url": "https://artist-hub-219.preview.emergentagent.com"},
             headers={"Authorization": f"Bearer {auth_token}"})
         assert response.status_code == 400
         print("✓ POST /api/subscriptions/checkout (invalid) returns 400")
@@ -143,7 +143,7 @@ class TestSubscriptionCheckout:
     def test_checkout_without_auth(self):
         """POST /api/subscriptions/checkout without auth returns 401"""
         response = requests.post(f"{BASE_URL}/api/subscriptions/checkout", 
-            json={"plan": "rise", "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"})
+            json={"plan": "rise", "origin_url": "https://artist-hub-219.preview.emergentagent.com"})
         assert response.status_code == 401
         print("✓ POST /api/subscriptions/checkout without auth returns 401")
 

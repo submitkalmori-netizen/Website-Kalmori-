@@ -280,7 +280,7 @@ class TestPaymentsEndpoints:
         """POST /api/payments/checkout - creates Stripe checkout (free tier)"""
         response = requests.post(f"{BASE_URL}/api/payments/checkout", json={
             "release_id": user_with_release["release_id"],
-            "origin_url": "https://tunedrop-gateway.preview.emergentagent.com"
+            "origin_url": "https://artist-hub-219.preview.emergentagent.com"
         }, headers={"Authorization": f"Bearer {user_with_release['token']}"})
         assert response.status_code == 200, f"Checkout failed: {response.text}"
         data = response.json()
