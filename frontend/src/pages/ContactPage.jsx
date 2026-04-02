@@ -33,7 +33,7 @@ export default function ContactPage() {
         {/* Contact Info */}
         <div className="p-6 bg-[#0a0a0a] space-y-5">
           {contactItems.map((item, i) => (
-            <div key={i} className="flex items-center gap-4" data-testid={`contact-${item.label.toLowerCase()}`}>
+            <div key={i} className="flex items-center gap-4" data-testid={`contact-info-${item.label.toLowerCase()}`}>
               <div className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${item.color}20`, color: item.color }}>
                 {item.icon}
               </div>
