@@ -527,21 +527,30 @@ async def admin_import_royalties(request: Request):
             "created_at": now,
         })
 
-        # Send email notification
+        # In-app notification + email for matched artist
         if assign_artist_id and total_revenue > 0:
+            await db.notifications.insert_one({
+                "id": f"notif_{uuid.uuid4().hex[:12]}",
+                "user_id": assign_artist_id,
+                "type": "royalty_update",
+                "message": f"New earnings of ${total_revenue:.2f} have been added to your account via Kalmori Distribution.",
+                "read": False,
+                "created_at": now,
+            })
             try:
                 au_email = await db.users.find_one({"id": assign_artist_id}, {"_id": 0, "email": 1})
                 if au_email and au_email.get("email"):
                     from routes.email_routes import send_email, email_base
                     body = f"""<p style="color:#ccc;font-size:15px;margin:0 0 16px;">Hey {assigned_artist_name}!</p>
-                    <p style="color:#999;font-size:14px;line-height:1.7;margin:0 0 20px;">New streaming data has been uploaded. Here's your update:</p>
+                    <p style="color:#999;font-size:14px;line-height:1.7;margin:0 0 20px;">New earnings data has been processed by Kalmori Distribution. Here's your update:</p>
                     <div style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
                     <p style="color:#1DB954;font-size:36px;font-weight:bold;margin:0;">${total_revenue:.2f}</p>
-                    <p style="color:#999;font-size:13px;margin:4px 0 0;">Estimated earnings added</p>
-                    </div>"""
-                    html = email_base("linear-gradient(135deg,#1DB954 0%,#4CAF50 100%)", "New Streaming Data!", body, "Distributed via Kalmori")
+                    <p style="color:#999;font-size:13px;margin:4px 0 0;">New earnings added to your account</p>
+                    </div>
+                    <p style="color:#999;font-size:13px;margin:16px 0 0;">Log in to your dashboard to view your full earnings breakdown.</p>"""
+                    html = email_base("linear-gradient(135deg,#FFD700 0%,#FFA000 100%)", "New Kalmori Earnings!", body, "Kalmori Distribution")
                     import asyncio
-                    asyncio.ensure_future(send_email(au_email["email"], f"New streaming data: ${total_revenue:.2f}", html))
+                    asyncio.ensure_future(send_email(au_email["email"], f"Kalmori Distribution: New earnings of ${total_revenue:.2f}", html))
             except Exception as e:
                 logger.warning(f"Notification email failed: {e}")
 
@@ -698,21 +707,34 @@ async def admin_import_royalties(request: Request):
         "created_at": now,
     })
 
+    # In-app notifications + emails for ALL matched artists
     for a_id, notif in notifications.items():
-        if notif.get("email") and notif["total"] > 0:
-            try:
-                from routes.email_routes import send_email, email_base
-                body = f"""<p style="color:#ccc;font-size:15px;margin:0 0 16px;">Hey {notif['name']}!</p>
-                <p style="color:#999;font-size:14px;line-height:1.7;margin:0 0 20px;">New royalty data has been uploaded. Here's your earnings update:</p>
-                <div style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
-                <p style="color:#1DB954;font-size:36px;font-weight:bold;margin:0;">${notif['total']:.2f}</p>
-                <p style="color:#999;font-size:13px;margin:4px 0 0;">New earnings added to your account</p>
-                </div>"""
-                html = email_base("linear-gradient(135deg,#1DB954 0%,#4CAF50 100%)", "New Royalty Earnings!", body, "Distributed via Kalmori")
-                import asyncio
-                asyncio.ensure_future(send_email(notif["email"], f"New royalty earnings: ${notif['total']:.2f}", html))
-            except Exception as e:
-                logger.warning(f"Royalty notification email failed: {e}")
+        if notif["total"] > 0:
+            # Always create in-app notification
+            await db.notifications.insert_one({
+                "id": f"notif_{uuid.uuid4().hex[:12]}",
+                "user_id": a_id,
+                "type": "royalty_update",
+                "message": f"New earnings of ${notif['total']:.2f} have been added to your account via Kalmori Distribution.",
+                "read": False,
+                "created_at": now,
+            })
+            # Send email if they have one on file
+            if notif.get("email"):
+                try:
+                    from routes.email_routes import send_email, email_base
+                    body = f"""<p style="color:#ccc;font-size:15px;margin:0 0 16px;">Hey {notif['name']}!</p>
+                    <p style="color:#999;font-size:14px;line-height:1.7;margin:0 0 20px;">New earnings data has been processed by Kalmori Distribution. Here's your update:</p>
+                    <div style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
+                    <p style="color:#1DB954;font-size:36px;font-weight:bold;margin:0;">${notif['total']:.2f}</p>
+                    <p style="color:#999;font-size:13px;margin:4px 0 0;">New earnings added to your account</p>
+                    </div>
+                    <p style="color:#999;font-size:13px;margin:16px 0 0;">Log in to your dashboard to view your full earnings breakdown.</p>"""
+                    html = email_base("linear-gradient(135deg,#FFD700 0%,#FFA000 100%)", "New Kalmori Earnings!", body, "Kalmori Distribution")
+                    import asyncio
+                    asyncio.ensure_future(send_email(notif["email"], f"Kalmori Distribution: New earnings of ${notif['total']:.2f}", html))
+                except Exception as e:
+                    logger.warning(f"Royalty notification email failed for {a_id}: {e}")
 
     return {
         "message": f"Import complete. {matched} matched, {unmatched} unmatched.",

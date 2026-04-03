@@ -28,6 +28,7 @@ export default function RevenueAnalyticsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [showExport, setShowExport] = useState(false);
   const [calcStreams, setCalcStreams] = useState(10000);
   const [calcMix, setCalcMix] = useState({ Spotify: 45, 'Apple Music': 25, 'YouTube Music': 15, 'Amazon Music': 10, Other: 5 });
   const [calcResult, setCalcResult] = useState(null);
@@ -92,12 +93,43 @@ export default function RevenueAnalyticsPage() {
             <h1 className="text-2xl sm:text-3xl font-bold">Revenue Analytics</h1>
             <p className="text-gray-400 mt-1">Track your earnings across all sources</p>
           </div>
-          {hasKalmori && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#7C4DFF]/10 border border-[#7C4DFF]/30 rounded-lg">
-              <Bank className="w-4 h-4 text-[#7C4DFF]" />
-              <span className="text-xs text-[#7C4DFF] font-medium">Kalmori Distribution Active</span>
+          <div className="flex items-center gap-3">
+            {hasKalmori && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-[#7C4DFF]/10 border border-[#7C4DFF]/30 rounded-lg">
+                <Bank className="w-4 h-4 text-[#7C4DFF]" />
+                <span className="text-xs text-[#7C4DFF] font-medium">Kalmori Distribution Active</span>
+              </div>
+            )}
+            <div className="relative" data-testid="export-dropdown">
+              <button
+                onClick={() => setShowExport(!showExport)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-[#1DB954]/10 border border-[#1DB954]/30 rounded-lg text-[#1DB954] text-xs font-medium hover:bg-[#1DB954]/20 transition-colors"
+                data-testid="export-btn"
+              >
+                <DownloadSimple className="w-4 h-4" /> Export Report
+              </button>
+              {showExport && (
+                <div className="absolute right-0 top-10 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden min-w-[180px]">
+                  <a
+                    href={`${API}/analytics/revenue/export/csv`}
+                    className="flex items-center gap-2 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors"
+                    onClick={() => setShowExport(false)}
+                    data-testid="export-csv-btn"
+                  >
+                    <DownloadSimple className="w-4 h-4" /> Download CSV
+                  </a>
+                  <a
+                    href={`${API}/analytics/revenue/export/pdf`}
+                    className="flex items-center gap-2 px-4 py-3 text-sm text-gray-300 hover:bg-white/5 transition-colors border-t border-white/5"
+                    onClick={() => setShowExport(false)}
+                    data-testid="export-pdf-btn"
+                  >
+                    <DownloadSimple className="w-4 h-4" /> Download PDF
+                  </a>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Tab Switcher */}
