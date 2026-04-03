@@ -27,6 +27,9 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import AdminBeatsPage from './pages/AdminBeatsPage';
 import AdminRoyaltyImportPage from './pages/AdminRoyaltyImportPage';
 import AdminUserDetailPage from './pages/AdminUserDetailPage';
+import AdminCampaignsPage from './pages/AdminCampaignsPage';
+import AdminLeadsPage from './pages/AdminLeadsPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import PricingPage from './pages/PricingPage';
 import ServicesPage from './pages/ServicesPage';
 import AboutPage from './pages/AboutPage';
@@ -289,6 +292,9 @@ const AppRouter = () => {
               <Route path="/admin/users/:userId" element={<AdminRoute><AdminUserDetailPage /></AdminRoute>} />
               <Route path="/admin/beats" element={<AdminRoute><AdminBeatsPage /></AdminRoute>} />
               <Route path="/admin/royalty-import" element={<AdminRoute><AdminRoyaltyImportPage /></AdminRoute>} />
+              <Route path="/admin/campaigns" element={<AdminRoute><AdminCampaignsPage /></AdminRoute>} />
+              <Route path="/admin/leads" element={<AdminRoute><AdminLeadsPage /></AdminRoute>} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/services" element={<ServicesPage />} />
       <Route path="/about" element={<AboutPage />} />

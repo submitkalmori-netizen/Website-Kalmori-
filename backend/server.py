@@ -74,6 +74,7 @@ async def register(user_data: UserCreate, response: Response):
         "country": user_data.country or "", "state": user_data.state or "",
         "town": user_data.town or "", "post_code": user_data.post_code or "",
         "phone_number": user_data.phone_number or "",
+        "email_verified": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(user_doc)
@@ -88,13 +89,25 @@ async def register(user_data: UserCreate, response: Response):
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
     user_doc.pop("password_hash", None)
     user_doc.pop("_id", None)
-    # Send welcome email
+    # Send welcome email + verification + admin notification
     try:
-        from routes.email_routes import send_welcome_email
+        from routes.email_routes import send_welcome_email, send_verification_email, send_admin_signup_notification
         import asyncio
+        import secrets as _secrets
+        # Welcome email
         asyncio.ensure_future(send_welcome_email(email, user_doc.get("name", "Artist"), user_data.user_role or "artist"))
+        # Verification email
+        verify_token = _secrets.token_urlsafe(32)
+        await db.email_verifications.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user_id, "email": email,
+            "token": verify_token, "expires_at": datetime.now(timezone.utc) + timedelta(hours=24),
+            "used": False, "created_at": datetime.now(timezone.utc),
+        })
+        asyncio.ensure_future(send_verification_email(email, user_doc.get("name", "Artist"), verify_token))
+        # Admin notification
+        asyncio.ensure_future(send_admin_signup_notification(user_doc.get("name", "Artist"), email, user_data.user_role or "artist"))
     except Exception as e:
-        logger.warning(f"Welcome email failed: {e}")
+        logger.warning(f"Sign-up email failed: {e}")
     return {"access_token": access_token, "refresh_token": refresh_token, "user": user_doc}
 
 class SetRoleInput(BaseModel):

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, API } from '../App';
 import { Button } from './ui/button';
-import { House, Users, ClipboardText, ChartBar, Gear, SignOut, List, X, ArrowLeft, ShieldCheck, Bell, MusicNote, FileArrowUp } from '@phosphor-icons/react';
+import { House, Users, ClipboardText, ChartBar, Gear, SignOut, List, X, ArrowLeft, ShieldCheck, Bell, MusicNote, FileArrowUp, PaperPlaneTilt, Megaphone } from '@phosphor-icons/react';
 import axios from 'axios';
 
 const AdminLayout = ({ children }) => {
@@ -30,6 +30,8 @@ const AdminLayout = ({ children }) => {
     { path: '/admin/users', icon: <Users className="w-5 h-5" />, label: 'Users' },
     { path: '/admin/beats', icon: <MusicNote className="w-5 h-5" />, label: 'Beat Manager' },
     { path: '/admin/royalty-import', icon: <FileArrowUp className="w-5 h-5" />, label: 'Royalty Import' },
+    { path: '/admin/campaigns', icon: <PaperPlaneTilt className="w-5 h-5" />, label: 'Campaigns' },
+    { path: '/admin/leads', icon: <Megaphone className="w-5 h-5" />, label: 'Lead Follow-Up' },
   ];
 
   const isActive = (item) => {
