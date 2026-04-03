@@ -3,7 +3,7 @@ import axios from 'axios';
 import { API } from '../App';
 import AdminLayout from '../components/AdminLayout';
 import { Button } from '../components/ui/button';
-import { Upload, FileArrowUp, FileCsv, CheckCircle, WarningCircle, Clock, Eye, X, Plus, Trash, PencilSimple, FloppyDisk, ShieldWarning, CopySimple, ArrowsLeftRight } from '@phosphor-icons/react';
+import { Upload, FileArrowUp, FileCsv, CheckCircle, WarningCircle, Clock, Eye, X, Plus, Trash, PencilSimple, FloppyDisk, ShieldWarning, CopySimple, ArrowsLeftRight, CalendarBlank, Play, Pause, Timer } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const AdminRoyaltyImportPage = () => {
@@ -31,6 +31,22 @@ const AdminRoyaltyImportPage = () => {
   // Reconciliation
   const [reconData, setReconData] = useState(null);
   const [loadingRecon, setLoadingRecon] = useState(false);
+  // Schedules
+  const [schedules, setSchedules] = useState([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [showNewSchedule, setShowNewSchedule] = useState(false);
+  const [schedName, setSchedName] = useState('');
+  const [schedFrequency, setSchedFrequency] = useState('weekly');
+  const [schedTemplateId, setSchedTemplateId] = useState('');
+  const [schedArtistId, setSchedArtistId] = useState('');
+  const [schedNotes, setSchedNotes] = useState('');
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  // Bulk actions
+  const [selectedDupEntries, setSelectedDupEntries] = useState([]);
+  const [bulkResolveStrategy, setBulkResolveStrategy] = useState('keep_latest');
+  const [bulkAssignArtist, setBulkAssignArtist] = useState('');
+  const [selectedUnmatched, setSelectedUnmatched] = useState([]);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -67,9 +83,90 @@ const AdminRoyaltyImportPage = () => {
     finally { setLoadingRecon(false); }
   };
 
+  const fetchSchedules = async () => {
+    setLoadingSchedules(true);
+    try {
+      const res = await axios.get(`${API}/admin/schedules`);
+      setSchedules(res.data.schedules || []);
+    } catch (err) { toast.error('Failed to load schedules'); }
+    finally { setLoadingSchedules(false); }
+  };
+
+  const createSchedule = async () => {
+    if (!schedName.trim()) { toast.error('Schedule name is required'); return; }
+    setSavingSchedule(true);
+    try {
+      await axios.post(`${API}/admin/schedules`, {
+        name: schedName, frequency: schedFrequency,
+        template_id: schedTemplateId, artist_id: schedArtistId, notes: schedNotes,
+      });
+      toast.success('Schedule created');
+      setShowNewSchedule(false);
+      setSchedName(''); setSchedNotes(''); setSchedTemplateId(''); setSchedArtistId('');
+      fetchSchedules();
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to create schedule'); }
+    finally { setSavingSchedule(false); }
+  };
+
+  const toggleSchedule = async (id) => {
+    try {
+      const res = await axios.put(`${API}/admin/schedules/${id}/toggle`);
+      toast.success(`Schedule ${res.data.status}`);
+      fetchSchedules();
+    } catch (err) { toast.error('Failed to toggle schedule'); }
+  };
+
+  const deleteSchedule = async (id) => {
+    try {
+      await axios.delete(`${API}/admin/schedules/${id}`);
+      toast.success('Schedule deleted');
+      fetchSchedules();
+    } catch (err) { toast.error('Failed to delete schedule'); }
+  };
+
+  const checkDueSchedules = async () => {
+    try {
+      const res = await axios.post(`${API}/admin/schedules/check-due`);
+      if (res.data.reminders_sent > 0) toast.success(`${res.data.reminders_sent} reminder(s) sent`);
+      else toast.info('No schedules are due right now');
+      fetchSchedules();
+    } catch (err) { toast.error('Failed to check schedules'); }
+  };
+
+  const bulkResolveDuplicates = async (entryIds) => {
+    if (!entryIds.length) { toast.error('Select entries to resolve'); return; }
+    setBulkProcessing(true);
+    try {
+      const res = await axios.post(`${API}/admin/royalties/reconciliation/resolve-duplicates`, {
+        entry_ids: entryIds, strategy: bulkResolveStrategy,
+      });
+      toast.success(res.data.message);
+      fetchReconciliation();
+      setSelectedDupEntries([]);
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to resolve'); }
+    finally { setBulkProcessing(false); }
+  };
+
+  const bulkAssignUnmatched = async () => {
+    if (!selectedUnmatched.length || !bulkAssignArtist) { toast.error('Select entries and an artist'); return; }
+    setBulkProcessing(true);
+    try {
+      const res = await axios.post(`${API}/admin/royalties/reconciliation/bulk-assign`, {
+        entry_ids: selectedUnmatched, artist_id: bulkAssignArtist,
+      });
+      toast.success(res.data.message);
+      fetchReconciliation();
+      fetchImports();
+      setSelectedUnmatched([]);
+      setBulkAssignArtist('');
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to assign'); }
+    finally { setBulkProcessing(false); }
+  };
+
   const [selectedArtistId, setSelectedArtistId] = useState('');
 
   useEffect(() => { if (activeSection === 'reconciliation') fetchReconciliation(); }, [activeSection]);
+  useEffect(() => { if (activeSection === 'schedules') fetchSchedules(); }, [activeSection]);
 
   const SUPPORTED_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.pdf'];
 
@@ -173,6 +270,7 @@ const AdminRoyaltyImportPage = () => {
             { id: 'import', label: 'Import & Upload' },
             { id: 'templates', label: 'Distributor Templates' },
             { id: 'reconciliation', label: 'Reconciliation' },
+            { id: 'schedules', label: 'Schedules' },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveSection(tab.id)}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeSection === tab.id ? 'bg-[#E53935] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
@@ -471,6 +569,25 @@ const AdminRoyaltyImportPage = () => {
                     <h3 className="text-base font-bold text-white">Duplicate Entries</h3>
                     <span className="text-xs bg-[#FF6B6B]/10 text-[#FF6B6B] px-2 py-0.5 rounded-full ml-auto">{reconData.duplicates.length} groups</span>
                   </div>
+                  {reconData.duplicates.length > 0 && (
+                    <div className="p-4 border-b border-white/5 flex flex-wrap items-center gap-3 bg-[#FF6B6B]/[0.03]" data-testid="bulk-resolve-bar">
+                      <select value={bulkResolveStrategy} onChange={e => setBulkResolveStrategy(e.target.value)}
+                        className="bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white">
+                        <option value="keep_latest">Keep Latest</option>
+                        <option value="keep_highest">Keep Highest Revenue</option>
+                        <option value="delete_all">Delete All Duplicates</option>
+                      </select>
+                      <Button size="sm" disabled={bulkProcessing}
+                        onClick={() => {
+                          const allIds = reconData.duplicates.flatMap(d => d.entry_ids || []);
+                          if (allIds.length) bulkResolveDuplicates(allIds);
+                          else toast.info('No entry IDs available in duplicate data');
+                        }}
+                        className="bg-[#FF6B6B] hover:bg-[#FF6B6B]/80 text-white text-xs font-bold gap-1" data-testid="resolve-all-btn">
+                        {bulkProcessing ? 'Processing...' : 'Resolve All Duplicates'}
+                      </Button>
+                    </div>
+                  )}
                   {reconData.duplicates.length === 0 ? (
                     <div className="p-8 text-center">
                       <CheckCircle className="w-10 h-10 text-[#1DB954]/20 mx-auto mb-2" />
@@ -551,11 +668,176 @@ const AdminRoyaltyImportPage = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Bulk Assign Unmatched */}
+                {reconData.summary.unmatched_entries > 0 && (
+                  <div className="bg-[#141414] border border-white/10 rounded-xl overflow-hidden" data-testid="bulk-assign-section">
+                    <div className="p-5 border-b border-white/10 flex items-center gap-2">
+                      <ArrowsLeftRight className="w-4 h-4 text-[#1DB954]" />
+                      <h3 className="text-base font-bold text-white">Bulk Assign Unmatched</h3>
+                      <span className="text-xs bg-[#1DB954]/10 text-[#1DB954] px-2 py-0.5 rounded-full ml-auto">{reconData.summary.unmatched_entries} unmatched</span>
+                    </div>
+                    <div className="p-5 flex flex-wrap items-center gap-3">
+                      <select value={bulkAssignArtist} onChange={e => setBulkAssignArtist(e.target.value)}
+                        className="bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-xs text-white min-w-[200px]" data-testid="bulk-assign-artist-select">
+                        <option value="">Select Artist / Producer</option>
+                        {allUsers.map(u => (
+                          <option key={u.id} value={u.id}>{u.artist_name || u.name || u.email}</option>
+                        ))}
+                      </select>
+                      <Button size="sm" disabled={bulkProcessing || !bulkAssignArtist}
+                        onClick={async () => {
+                          try {
+                            const res = await axios.get(`${API}/admin/royalties/imports`);
+                            const unmatched = [];
+                            for (const imp of res.data.imports || []) {
+                              const detail = await axios.get(`${API}/admin/royalties/imports/${imp.id}`);
+                              for (const entry of detail.data.entries || []) {
+                                if (entry.status === 'unmatched') unmatched.push(entry.id);
+                              }
+                            }
+                            if (unmatched.length) { setSelectedUnmatched(unmatched); bulkAssignUnmatched(); }
+                            else toast.info('No unmatched entries found');
+                          } catch { toast.error('Failed to fetch unmatched entries'); setBulkProcessing(false); }
+                        }}
+                        className="bg-[#1DB954] hover:bg-[#1DB954]/80 text-white text-xs font-bold gap-1" data-testid="bulk-assign-btn">
+                        {bulkProcessing ? 'Assigning...' : 'Assign All Unmatched'}
+                      </Button>
+                      <p className="text-xs text-gray-500">Assigns all unmatched entries to the selected user. Notifications will be sent automatically.</p>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="bg-[#141414] border border-white/10 rounded-xl p-10 text-center">
                 <ShieldWarning className="w-12 h-12 text-white/10 mx-auto mb-3" />
                 <p className="text-sm text-gray-500">Click "Refresh Analysis" to scan your imports.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== SCHEDULES SECTION ===== */}
+        {activeSection === 'schedules' && (
+          <div className="space-y-6" data-testid="schedules-section">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-white">Import Schedules</h3>
+                <p className="text-xs text-gray-500 mt-1">Schedule recurring reminders to upload distributor reports.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={checkDueSchedules} variant="outline" size="sm"
+                  className="border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10 text-xs gap-1" data-testid="check-due-btn">
+                  <Timer className="w-4 h-4" /> Check Due
+                </Button>
+                <Button onClick={() => setShowNewSchedule(true)} size="sm"
+                  className="bg-[#E53935] hover:bg-[#E53935]/80 text-white text-xs gap-1" data-testid="new-schedule-btn">
+                  <Plus className="w-4 h-4" /> New Schedule
+                </Button>
+              </div>
+            </div>
+
+            {/* Create Schedule Form */}
+            {showNewSchedule && (
+              <div className="bg-[#141414] border border-[#E53935]/20 rounded-xl p-5 space-y-4" data-testid="new-schedule-form">
+                <h4 className="text-sm font-bold text-white">Create Schedule</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Schedule Name *</label>
+                    <input value={schedName} onChange={e => setSchedName(e.target.value)}
+                      placeholder="e.g. Weekly CD Baby Import"
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-[#E53935]/50 focus:outline-none"
+                      data-testid="sched-name-input" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Frequency *</label>
+                    <select value={schedFrequency} onChange={e => setSchedFrequency(e.target.value)}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" data-testid="sched-freq-select">
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Distributor Template</label>
+                    <select value={schedTemplateId} onChange={e => setSchedTemplateId(e.target.value)}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" data-testid="sched-template-select">
+                      <option value="">None</option>
+                      {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Target Artist / Producer</label>
+                    <select value={schedArtistId} onChange={e => setSchedArtistId(e.target.value)}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white" data-testid="sched-artist-select">
+                      <option value="">All Artists</option>
+                      {allUsers.map(u => <option key={u.id} value={u.id}>{u.artist_name || u.name || u.email}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Notes</label>
+                  <input value={schedNotes} onChange={e => setSchedNotes(e.target.value)} placeholder="Optional notes"
+                    className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:border-[#E53935]/50 focus:outline-none"
+                    data-testid="sched-notes-input" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button onClick={createSchedule} disabled={savingSchedule}
+                    className="bg-[#E53935] hover:bg-[#E53935]/80 text-white text-xs font-bold gap-1" data-testid="save-schedule-btn">
+                    <FloppyDisk className="w-4 h-4" /> {savingSchedule ? 'Saving...' : 'Save Schedule'}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setShowNewSchedule(false)} className="text-xs text-gray-400">Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {/* Schedules List */}
+            {loadingSchedules ? (
+              <div className="bg-[#141414] border border-white/10 rounded-xl p-16 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-[#E53935] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : schedules.length === 0 ? (
+              <div className="bg-[#141414] border border-white/10 rounded-xl p-10 text-center">
+                <CalendarBlank className="w-12 h-12 text-white/10 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No schedules yet. Create one to get recurring import reminders.</p>
+              </div>
+            ) : (
+              <div className="space-y-3" data-testid="schedules-list">
+                {schedules.map(s => (
+                  <div key={s.id} className={`bg-[#141414] border rounded-xl p-5 flex items-center gap-4 ${s.overdue ? 'border-[#FF6B6B]/40 bg-[#FF6B6B]/[0.03]' : 'border-white/10'}`}
+                    data-testid={`schedule-${s.id}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${s.status === 'active' ? 'bg-[#1DB954]/10' : 'bg-gray-800'}`}>
+                      {s.status === 'active'
+                        ? <CalendarBlank className="w-5 h-5 text-[#1DB954]" />
+                        : <Pause className="w-5 h-5 text-gray-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-white truncate">{s.name}</h4>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${s.status === 'active' ? 'bg-[#1DB954]/10 text-[#1DB954]' : 'bg-gray-800 text-gray-500'}`}>
+                          {s.status}
+                        </span>
+                        {s.overdue && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FF6B6B]/10 text-[#FF6B6B] font-bold">OVERDUE</span>}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {s.frequency} {s.artist_name ? `· ${s.artist_name}` : ''} {s.template_name ? `· ${s.template_name}` : ''}
+                      </p>
+                      <p className="text-[10px] text-gray-600 mt-0.5">
+                        Next due: {s.next_due ? new Date(s.next_due).toLocaleDateString() : '—'} · Runs: {s.run_count}
+                        {s.notes && <span className="ml-2 italic">"{s.notes}"</span>}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => toggleSchedule(s.id)} title={s.status === 'active' ? 'Pause' : 'Resume'}
+                        className="p-2 rounded-lg hover:bg-white/5 text-gray-400 hover:text-white transition-colors" data-testid={`toggle-${s.id}`}>
+                        {s.status === 'active' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      </button>
+                      <button onClick={() => deleteSchedule(s.id)} title="Delete"
+                        className="p-2 rounded-lg hover:bg-[#FF6B6B]/10 text-gray-400 hover:text-[#FF6B6B] transition-colors" data-testid={`delete-${s.id}`}>
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

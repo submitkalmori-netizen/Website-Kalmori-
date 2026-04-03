@@ -45,6 +45,21 @@ class DistributorTemplateInput(BaseModel):
     column_mapping: dict
     notes: Optional[str] = ""
 
+class ScheduleInput(BaseModel):
+    name: str
+    frequency: str  # "weekly" or "monthly"
+    template_id: Optional[str] = ""
+    artist_id: Optional[str] = ""
+    notes: Optional[str] = ""
+
+class BulkResolveInput(BaseModel):
+    entry_ids: list
+    strategy: str  # "keep_latest", "keep_highest", "delete_all"
+
+class BulkAssignInput(BaseModel):
+    entry_ids: list
+    artist_id: str
+
 
 # ============= HELPERS =============
 
@@ -885,4 +900,230 @@ async def admin_royalty_reconciliation(request: Request):
             "total_discrepancy_amount": round(total_discrepancy_amount, 2),
         },
         "duplicates": duplicates[:50], "discrepancies": discrepancies[:50],
+    }
+
+
+# ============= IMPORT SCHEDULES =============
+
+@admin_router.post("/schedules")
+async def create_schedule(data: ScheduleInput, request: Request):
+    user = await require_admin(request)
+    if data.frequency not in ("weekly", "monthly"):
+        raise HTTPException(status_code=400, detail="Frequency must be 'weekly' or 'monthly'")
+    now = datetime.now(timezone.utc)
+    if data.frequency == "weekly":
+        next_due = now + timedelta(weeks=1)
+    else:
+        next_due = now + timedelta(days=30)
+
+    artist_name = ""
+    if data.artist_id:
+        au = await db.users.find_one({"id": data.artist_id}, {"_id": 0, "artist_name": 1, "name": 1})
+        artist_name = au.get("artist_name", au.get("name", "")) if au else ""
+
+    template_name = ""
+    if data.template_id:
+        tpl = await db.distributor_templates.find_one({"id": data.template_id}, {"_id": 0, "name": 1})
+        template_name = tpl.get("name", "") if tpl else ""
+
+    schedule = {
+        "id": f"sched_{uuid.uuid4().hex[:12]}",
+        "admin_id": user["id"],
+        "name": data.name.strip(),
+        "frequency": data.frequency,
+        "template_id": data.template_id or "",
+        "template_name": template_name,
+        "artist_id": data.artist_id or "",
+        "artist_name": artist_name,
+        "notes": data.notes or "",
+        "status": "active",
+        "next_due": next_due.isoformat(),
+        "last_run": None,
+        "run_count": 0,
+        "created_at": now.isoformat(),
+    }
+    await db.import_schedules.insert_one(schedule)
+    schedule.pop("_id", None)
+    return schedule
+
+@admin_router.get("/schedules")
+async def list_schedules(request: Request):
+    await require_admin(request)
+    schedules = await db.import_schedules.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    # Check which are overdue
+    now = datetime.now(timezone.utc).isoformat()
+    for s in schedules:
+        s["overdue"] = s.get("status") == "active" and s.get("next_due", "") < now
+    return {"schedules": schedules}
+
+@admin_router.put("/schedules/{schedule_id}/toggle")
+async def toggle_schedule(schedule_id: str, request: Request):
+    await require_admin(request)
+    sched = await db.import_schedules.find_one({"id": schedule_id})
+    if not sched:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    new_status = "paused" if sched["status"] == "active" else "active"
+    update = {"status": new_status}
+    if new_status == "active":
+        now = datetime.now(timezone.utc)
+        if sched["frequency"] == "weekly":
+            update["next_due"] = (now + timedelta(weeks=1)).isoformat()
+        else:
+            update["next_due"] = (now + timedelta(days=30)).isoformat()
+    await db.import_schedules.update_one({"id": schedule_id}, {"$set": update})
+    return {"message": f"Schedule {new_status}", "status": new_status}
+
+@admin_router.delete("/schedules/{schedule_id}")
+async def delete_schedule(schedule_id: str, request: Request):
+    await require_admin(request)
+    result = await db.import_schedules.delete_one({"id": schedule_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    return {"message": "Schedule deleted"}
+
+@admin_router.post("/schedules/check-due")
+async def check_due_schedules(request: Request):
+    """Check for overdue schedules and send reminder notifications to admin"""
+    user = await require_admin(request)
+    now = datetime.now(timezone.utc)
+    now_str = now.isoformat()
+
+    due_schedules = await db.import_schedules.find(
+        {"status": "active", "next_due": {"$lte": now_str}}, {"_id": 0}
+    ).to_list(100)
+
+    reminders_sent = 0
+    for sched in due_schedules:
+        artist_part = f" for {sched['artist_name']}" if sched.get("artist_name") else ""
+        template_part = f" using {sched['template_name']}" if sched.get("template_name") else ""
+
+        # Create reminder notification for admin
+        await db.notifications.insert_one({
+            "id": f"notif_{uuid.uuid4().hex[:12]}",
+            "user_id": user["id"],
+            "type": "schedule_reminder",
+            "message": f"Scheduled import due: {sched['name']}{artist_part}{template_part}. Upload the {sched['frequency']} report now.",
+            "read": False,
+            "created_at": now_str,
+        })
+
+        # Advance next_due
+        if sched["frequency"] == "weekly":
+            next_due = now + timedelta(weeks=1)
+        else:
+            next_due = now + timedelta(days=30)
+
+        await db.import_schedules.update_one({"id": sched["id"]}, {
+            "$set": {"next_due": next_due.isoformat(), "last_run": now_str},
+            "$inc": {"run_count": 1}
+        })
+        reminders_sent += 1
+
+        # Send email reminder to admin
+        try:
+            admin_email = user.get("email")
+            if admin_email:
+                from routes.email_routes import send_email, email_base
+                body = f"""<p style="color:#ccc;font-size:15px;margin:0 0 16px;">Import Reminder</p>
+                <p style="color:#999;font-size:14px;line-height:1.7;margin:0 0 20px;">Your scheduled import <b>{sched['name']}</b>{artist_part}{template_part} is due.</p>
+                <div style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin:20px 0;text-align:center;">
+                <p style="color:#E53935;font-size:20px;font-weight:bold;margin:0;">{sched['frequency'].title()} Report Due</p>
+                <p style="color:#999;font-size:13px;margin:4px 0 0;">Log in to upload the latest distributor report</p>
+                </div>"""
+                html = email_base("linear-gradient(135deg,#E53935 0%,#FF5722 100%)", "Import Reminder", body, "Kalmori Distribution")
+                import asyncio
+                asyncio.ensure_future(send_email(admin_email, f"Kalmori: {sched['name']} import is due", html))
+        except Exception as e:
+            logger.warning(f"Schedule reminder email failed: {e}")
+
+    return {"message": f"{reminders_sent} reminder(s) sent", "reminders_sent": reminders_sent, "due_schedules": len(due_schedules)}
+
+
+# ============= BULK RECONCILIATION =============
+
+@admin_router.post("/royalties/reconciliation/resolve-duplicates")
+async def resolve_duplicates(data: BulkResolveInput, request: Request):
+    """Bulk resolve duplicate entries. Strategy: keep_latest, keep_highest, or delete_all"""
+    await require_admin(request)
+    if not data.entry_ids or len(data.entry_ids) < 2:
+        raise HTTPException(status_code=400, detail="Provide at least 2 entry IDs")
+    if data.strategy not in ("keep_latest", "keep_highest", "delete_all"):
+        raise HTTPException(status_code=400, detail="Strategy must be keep_latest, keep_highest, or delete_all")
+
+    entries = []
+    for eid in data.entry_ids:
+        e = await db.imported_royalties.find_one({"id": eid}, {"_id": 0})
+        if e:
+            entries.append(e)
+
+    if len(entries) < 2 and data.strategy != "delete_all":
+        raise HTTPException(status_code=400, detail="Not enough entries found")
+
+    if data.strategy == "delete_all":
+        result = await db.imported_royalties.delete_many({"id": {"$in": data.entry_ids}})
+        return {"message": f"Deleted {result.deleted_count} entries", "deleted": result.deleted_count}
+
+    if data.strategy == "keep_latest":
+        entries.sort(key=lambda e: e.get("created_at", ""), reverse=True)
+    elif data.strategy == "keep_highest":
+        entries.sort(key=lambda e: e.get("revenue", 0), reverse=True)
+
+    keep = entries[0]
+    delete_ids = [e["id"] for e in entries[1:]]
+    result = await db.imported_royalties.delete_many({"id": {"$in": delete_ids}})
+
+    return {
+        "message": f"Kept '{keep['id']}' ({data.strategy}), deleted {result.deleted_count} duplicates",
+        "kept_id": keep["id"],
+        "deleted": result.deleted_count,
+    }
+
+@admin_router.post("/royalties/reconciliation/bulk-assign")
+async def bulk_assign_unmatched(data: BulkAssignInput, request: Request):
+    """Assign multiple unmatched entries to a single artist"""
+    await require_admin(request)
+    if not data.entry_ids:
+        raise HTTPException(status_code=400, detail="Provide entry IDs")
+    user = await db.users.find_one({"id": data.artist_id}, {"_id": 0, "artist_name": 1, "name": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="Artist not found")
+
+    now = datetime.now(timezone.utc).isoformat()
+    result = await db.imported_royalties.update_many(
+        {"id": {"$in": data.entry_ids}, "status": "unmatched"},
+        {"$set": {"matched_artist_id": data.artist_id, "status": "matched", "assigned_at": now}}
+    )
+
+    # Update import summary counts
+    assigned_entries = await db.imported_royalties.find(
+        {"id": {"$in": data.entry_ids}}, {"_id": 0, "import_id": 1}
+    ).to_list(len(data.entry_ids))
+    import_ids = set(e["import_id"] for e in assigned_entries if e.get("import_id"))
+    for imp_id in import_ids:
+        await db.royalty_imports.update_one(
+            {"id": imp_id, "unmatched": {"$gt": 0}},
+            {"$inc": {"matched": 1, "unmatched": -1}}
+        )
+
+    # Notify the artist
+    if result.modified_count > 0:
+        total_rev = 0
+        for eid in data.entry_ids:
+            e = await db.imported_royalties.find_one({"id": eid}, {"_id": 0, "revenue": 1})
+            if e:
+                total_rev += e.get("revenue", 0)
+
+        artist_name = user.get("artist_name", user.get("name", ""))
+        await db.notifications.insert_one({
+            "id": f"notif_{uuid.uuid4().hex[:12]}",
+            "user_id": data.artist_id,
+            "type": "royalty_update",
+            "message": f"New earnings of ${total_rev:.2f} have been assigned to your account via Kalmori Distribution.",
+            "read": False,
+            "created_at": now,
+        })
+
+    return {
+        "message": f"Assigned {result.modified_count} entries to {user.get('artist_name', user.get('name', ''))}",
+        "assigned": result.modified_count,
     }
