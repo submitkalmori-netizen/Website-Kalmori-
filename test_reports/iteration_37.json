@@ -1,0 +1,93 @@
+{
+  "summary": "Iteration 37 - Royalty Splits Management for Label Dashboard. All backend endpoints and frontend UI elements verified and working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: GET /api/label/royalties returns 200 for authenticated user",
+    "Backend: GET /api/label/royalties returns summary with total_revenue, total_artist_payouts, total_label_earnings, artist_count",
+    "Backend: GET /api/label/royalties returns artists array with gross_revenue, artist_split, label_split, artist_earnings, label_earnings",
+    "Backend: GET /api/label/royalties requires authentication (401 without token)",
+    "Backend: Default split is 70% artist / 30% label when no custom split is set",
+    "Backend: PUT /api/label/artists/{artist_id}/split sets custom royalty split successfully",
+    "Backend: PUT /api/label/artists/{artist_id}/split returns 400 if splits don't add to 100%",
+    "Backend: PUT /api/label/artists/{artist_id}/split returns 400 if splits are negative",
+    "Backend: PUT /api/label/artists/{artist_id}/split returns 404 for non-roster artist",
+    "Backend: PUT /api/label/artists/{artist_id}/split requires authentication (401 without token)",
+    "Backend: Earnings calculated correctly based on split percentages",
+    "Backend: Summary totals match sum of individual artist values",
+    "Frontend: Label Dashboard has Overview and Royalty Splits tabs",
+    "Frontend: Royalty Splits tab shows 3 summary cards (Total Gross Revenue, Artist Payouts in green, Label Earnings in gold)",
+    "Frontend: Royalty Splits table shows artist name, gross revenue, artist %, artist earnings, label %, label earnings, edit button",
+    "Frontend: Clicking edit button on a royalty row shows input field for artist split percentage",
+    "Frontend: Revenue Split Visualization shows green/gold bar per artist",
+    "Frontend: Saving a split updates the table and refreshes data with success toast"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iteration37_royalty_splits.py",
+    "/app/test_reports/pytest/pytest_results_iteration37.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Royalty endpoints correctly validate splits add to 100% and are non-negative",
+    "Earnings calculations are accurate: artist_earnings = gross_revenue * artist_split / 100",
+    "Summary totals correctly aggregate individual artist values",
+    "Frontend properly displays edit mode with input field and save/cancel buttons",
+    "Revenue Split Visualization uses correct colors (green for artist, gold for label)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration37_royalty_splits.py"
+  ],
+  "success_rate": {
+    "backend": "100% (12/12 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin_label_producer": {
+      "email": "admin@tunedrop.com",
+      "password": "Admin123!",
+      "role": "admin",
+      "user_role": "label_producer"
+    }
+  },
+  "seed_data_creation": "Admin user has 1 artist on roster (John Doe, user_id: user_0f42dea5a132)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 37 tested Royalty Splits Management feature. All endpoints working: GET /api/label/royalties (returns summary and artists array with royalty data), PUT /api/label/artists/{artist_id}/split (set custom split with validation). Frontend at /label has 'Royalty Splits' tab showing 3 summary cards, per-artist royalty table with editable splits, and revenue split visualization bar. Default split is 70% artist / 30% label. John Doe is on roster with user_id: user_0f42dea5a132.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": [],
+    "note": "No mocked APIs. All endpoints are fully functional with real MongoDB data."
+  },
+  "features_verified": {
+    "royalty_endpoints": {
+      "GET /api/label/royalties": {
+        "returns": {
+          "summary": ["total_revenue", "total_artist_payouts", "total_label_earnings", "artist_count"],
+          "artists": ["id", "artist_name", "gross_revenue", "artist_split", "label_split", "artist_earnings", "label_earnings", "streams", "monthly"]
+        },
+        "status": "Working"
+      },
+      "PUT /api/label/artists/{artist_id}/split": {
+        "input": ["artist_split", "label_split"],
+        "validations": ["splits must add to 100%", "splits cannot be negative"],
+        "error_codes": ["400 for invalid splits", "404 for non-roster artist"],
+        "status": "Working"
+      }
+    },
+    "royalty_ui": {
+      "route": "/label (Royalty Splits tab)",
+      "summary_cards": ["Total Gross Revenue (white)", "Artist Payouts (green)", "Label Earnings (gold)"],
+      "table_columns": ["Artist", "Gross Revenue", "Artist %", "Artist Earnings", "Label %", "Label Earnings", "Edit"],
+      "edit_functionality": ["Click edit shows input field", "Save updates split and refreshes data", "Cancel closes edit mode"],
+      "visualization": ["Green bar for artist share", "Gold bar for label share"],
+      "status": "Working"
+    }
+  }
+}

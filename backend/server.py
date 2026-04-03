@@ -2325,6 +2325,90 @@ async def label_remove_artist(artist_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Artist not found on your roster")
     return {"message": "Artist removed from roster"}
 
+# ============= ROYALTY SPLITS =============
+class SetSplitInput(BaseModel):
+    artist_split: float
+    label_split: float
+
+@api_router.put("/label/artists/{artist_id}/split")
+async def label_set_royalty_split(artist_id: str, data: SetSplitInput, request: Request):
+    """Set custom royalty split for an artist on the roster"""
+    user = await get_current_user(request)
+    if abs((data.artist_split + data.label_split) - 100) > 0.01:
+        raise HTTPException(status_code=400, detail="Splits must add up to 100%")
+    if data.artist_split < 0 or data.label_split < 0:
+        raise HTTPException(status_code=400, detail="Splits cannot be negative")
+    result = await db.label_artists.update_one(
+        {"label_id": user["id"], "artist_id": artist_id, "status": "active"},
+        {"$set": {"artist_split": data.artist_split, "label_split": data.label_split, "split_updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Artist not found on your roster")
+    return {"message": "Royalty split updated", "artist_split": data.artist_split, "label_split": data.label_split}
+
+@api_router.get("/label/royalties")
+async def label_get_royalties(request: Request):
+    """Get royalty breakdown per artist with calculated earnings"""
+    user = await get_current_user(request)
+    roster = await db.label_artists.find({"label_id": user["id"], "status": "active"}, {"_id": 0}).to_list(200)
+
+    total_label_earnings = 0
+    total_artist_payouts = 0
+    total_revenue = 0
+    artists_data = []
+
+    for entry in roster:
+        a_id = entry["artist_id"]
+        artist_split = entry.get("artist_split", 70)
+        label_split = entry.get("label_split", 30)
+
+        # Get revenue
+        rev_result = await db.stream_events.aggregate([
+            {"$match": {"artist_id": a_id, "revenue": {"$exists": True}}},
+            {"$group": {"_id": None, "total": {"$sum": "$revenue"}, "streams": {"$sum": 1}}}
+        ]).to_list(1)
+        gross_revenue = round(rev_result[0]["total"] if rev_result else 0, 2)
+        streams = rev_result[0]["streams"] if rev_result else 0
+
+        # Monthly revenue (last 6 months)
+        now = datetime.now(timezone.utc)
+        monthly = []
+        for m in range(6):
+            end = now - timedelta(days=30 * m)
+            start = end - timedelta(days=30)
+            m_result = await db.stream_events.aggregate([
+                {"$match": {"artist_id": a_id, "revenue": {"$exists": True}, "timestamp": {"$gte": start.isoformat(), "$lt": end.isoformat()}}},
+                {"$group": {"_id": None, "total": {"$sum": "$revenue"}}}
+            ]).to_list(1)
+            m_rev = round(m_result[0]["total"] if m_result else 0, 2)
+            monthly.append({"month": end.strftime("%b"), "revenue": m_rev, "artist_share": round(m_rev * artist_split / 100, 2), "label_share": round(m_rev * label_split / 100, 2)})
+        monthly.reverse()
+
+        artist_earnings = round(gross_revenue * artist_split / 100, 2)
+        label_earnings = round(gross_revenue * label_split / 100, 2)
+        total_label_earnings += label_earnings
+        total_artist_payouts += artist_earnings
+        total_revenue += gross_revenue
+
+        u = await db.users.find_one({"id": a_id}, {"_id": 0, "id": 1, "name": 1, "artist_name": 1, "avatar_url": 1, "plan": 1})
+        if u:
+            artists_data.append({
+                **u, "streams": streams, "gross_revenue": gross_revenue,
+                "artist_split": artist_split, "label_split": label_split,
+                "artist_earnings": artist_earnings, "label_earnings": label_earnings,
+                "monthly": monthly,
+            })
+
+    return {
+        "summary": {
+            "total_revenue": round(total_revenue, 2),
+            "total_artist_payouts": round(total_artist_payouts, 2),
+            "total_label_earnings": round(total_label_earnings, 2),
+            "artist_count": len(artists_data),
+        },
+        "artists": artists_data,
+    }
+
 # ============= ARTIST PUBLIC PROFILE =============
 import re
 
