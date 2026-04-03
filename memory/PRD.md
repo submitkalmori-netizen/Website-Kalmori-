@@ -21,37 +21,29 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - Welcome email on sign-up (role-specific: Artist vs Label/Producer)
 - Email template system with reusable email_base wrapper
 
-### Label Dashboard (Apr 2026)
+### Label Dashboard
 - Dedicated dashboard for Label/Producer accounts at /label
 - Manage artist roster: add by email, remove, view stats per artist
 - Collective analytics: total streams, revenue, releases across all managed artists
-- Platform & Country breakdowns for entire roster
-- Top Performers ranking with streams + revenue per artist
-- Recent Releases table across all roster artists
-- 5 stat cards: Artists, Total Streams, Revenue, Releases, This Week
-- "Label Dashboard" nav item only visible for label_producer users
+- Platform & Country breakdowns, Top Performers ranking, Recent Releases table
+- **Royalty Splits Management**: Custom royalty split per artist (default 70/30), editable via inline editor, summary cards (Total Revenue, Artist Payouts, Label Earnings), revenue split visualization bar, split validation (must sum to 100%)
 
 ### Admin Dashboard
 - Overview: 6 stat cards, Platform Streams, Top Markets, Top Artists, Monthly trend
-- User Detail Page (/admin/users/:userId): Full profile editor, stats, breakdowns, releases, goals
+- User Detail Page: Full profile editor, stats, breakdowns, releases, goals
 - Submissions review, Beat Manager
 
 ### Content
-- 4-tab Release Wizard with professional track form: Title/Title Version, ISRC (+ auto-generate), Dolby Atmos ISRC, ISWC, Audio Language, Production, Publisher, Preview Start/End Time, Artists (role+name), Main Contributors (Composer/Lyricist), Contributors (add/remove)
+- 4-tab Release Wizard with professional track form: Title/Version, ISRC (auto-generate), Dolby Atmos ISRC, ISWC, Audio Language, Production, Publisher, Preview Start/End, Artists, Main Contributors, Contributors
 - 150 streaming platforms with region-based filtering, search, Select All
 
-### Commerce
-- Stripe subs (4 tiers) + upgrade/downgrade, Beat catalog, My Purchases, Wallet
-
-### Analytics & AI
-- DSP simulation, Fan Analytics, Revenue Analytics, Release Leaderboard, Goal Tracking & Milestones
-- AI Release Strategy + Save/Compare + PDF Export, AI Smart Notifications
+### Commerce, Analytics & AI
+- Stripe subs (4 tiers), Beat catalog, Wallet, Revenue Analytics, Release Leaderboard
+- AI Release Strategy + PDF Export, AI Smart Notifications
+- Fan Analytics, Goal Tracking & Milestones
 
 ### Growth
 - Artist Profile Public Page (/artist/:slug), Pre-Save Campaigns, Collaborations
-
-### Landing Page
-- Marketing-focused with 9 feature showcase cards + stats row
 
 ## All Pages & Routes
 `/` `/login` `/register` `/select-role` `/label` `/instrumentals` `/dashboard` `/releases` `/releases/new` `/analytics` `/wallet` `/purchases` `/collaborations` `/presave-manager` `/fan-analytics` `/revenue` `/leaderboard` `/goals` `/settings` `/presave/:id` `/artist/:slug` `/spotify-canvas` `/content-id` `/admin` `/admin/submissions` `/admin/users` `/admin/users/:userId` `/admin/beats`
