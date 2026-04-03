@@ -25,6 +25,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminSubmissionsPage from './pages/AdminSubmissionsPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminBeatsPage from './pages/AdminBeatsPage';
+import AdminUserDetailPage from './pages/AdminUserDetailPage';
 import PricingPage from './pages/PricingPage';
 import ServicesPage from './pages/ServicesPage';
 import AboutPage from './pages/AboutPage';
@@ -280,6 +281,7 @@ const AppRouter = () => {
       <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/submissions" element={<AdminRoute><AdminSubmissionsPage /></AdminRoute>} />
       <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+              <Route path="/admin/users/:userId" element={<AdminRoute><AdminUserDetailPage /></AdminRoute>} />
               <Route path="/admin/beats" element={<AdminRoute><AdminBeatsPage /></AdminRoute>} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/services" element={<ServicesPage />} />

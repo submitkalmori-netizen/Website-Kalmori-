@@ -1309,6 +1309,233 @@ async def admin_update_user(user_id: str, update: AdminUserUpdate, request: Requ
         "notes": str(update_doc), "created_at": datetime.now(timezone.utc).isoformat()})
     return {"message": "User updated"}
 
+# ============= ADMIN: USER DETAIL & STATS =============
+class AdminProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    artist_name: Optional[str] = None
+    bio: Optional[str] = None
+    genre: Optional[str] = None
+    country: Optional[str] = None
+    website: Optional[str] = None
+    spotify_url: Optional[str] = None
+    apple_music_url: Optional[str] = None
+    instagram: Optional[str] = None
+    twitter: Optional[str] = None
+    role: Optional[str] = None
+    plan: Optional[str] = None
+    status: Optional[str] = None
+
+@api_router.get("/admin/users/{user_id}/detail")
+async def admin_get_user_detail(user_id: str, request: Request):
+    """Get full user profile + stats for admin view"""
+    await require_admin(request)
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get artist profile data (bio, socials)
+    profile = await db.artist_profiles.find_one({"user_id": user_id}, {"_id": 0}) or {}
+
+    # Releases
+    releases = await db.releases.find(
+        {"artist_id": user_id}, {"_id": 0, "id": 1, "title": 1, "release_type": 1, "genre": 1, "status": 1, "created_at": 1, "track_count": 1, "cover_art_url": 1}
+    ).sort("created_at", -1).to_list(50)
+
+    # Stream stats
+    total_streams_result = await db.stream_events.aggregate([
+        {"$match": {"artist_id": user_id}},
+        {"$group": {"_id": None, "total": {"$sum": 1}}}
+    ]).to_list(1)
+    total_streams = total_streams_result[0]["total"] if total_streams_result else 0
+
+    # Revenue
+    rev_result = await db.stream_events.aggregate([
+        {"$match": {"artist_id": user_id, "revenue": {"$exists": True}}},
+        {"$group": {"_id": None, "total": {"$sum": "$revenue"}}}
+    ]).to_list(1)
+    total_revenue = round(rev_result[0]["total"] if rev_result else 0, 2)
+
+    # Platform breakdown
+    platform_breakdown = await db.stream_events.aggregate([
+        {"$match": {"artist_id": user_id}},
+        {"$group": {"_id": "$platform", "count": {"$sum": 1}, "revenue": {"$sum": {"$ifNull": ["$revenue", 0]}}}},
+        {"$sort": {"count": -1}}, {"$limit": 10}
+    ]).to_list(10)
+
+    # Country breakdown
+    country_breakdown = await db.stream_events.aggregate([
+        {"$match": {"artist_id": user_id}},
+        {"$group": {"_id": "$country", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}, {"$limit": 10}
+    ]).to_list(10)
+
+    # Weekly streams trend (last 8 weeks)
+    weekly_trends = []
+    now = datetime.now(timezone.utc)
+    for w in range(8):
+        end = now - timedelta(weeks=w)
+        start = end - timedelta(weeks=1)
+        count = await db.stream_events.count_documents({
+            "artist_id": user_id,
+            "timestamp": {"$gte": start.isoformat(), "$lt": end.isoformat()}
+        })
+        weekly_trends.append({"week": f"W-{w}", "streams": count})
+    weekly_trends.reverse()
+
+    # Goals
+    goals = await db.goals.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(20)
+
+    # Collaborations count
+    collab_count = await db.collaborations.count_documents({"$or": [{"from_user_id": user_id}, {"to_user_id": user_id}]})
+
+    # Pre-save campaigns
+    presave_count = await db.presave_campaigns.count_documents({"artist_id": user_id})
+    presave_subs = await db.presave_campaigns.aggregate([
+        {"$match": {"artist_id": user_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$subscriber_count"}}}
+    ]).to_list(1)
+
+    return {
+        "user": {**user, **{k: profile.get(k) for k in ["bio", "genre", "country", "website", "spotify_url", "apple_music_url", "instagram", "twitter", "slug"] if profile.get(k)}},
+        "stats": {
+            "total_streams": total_streams,
+            "total_revenue": total_revenue,
+            "total_releases": len(releases),
+            "total_tracks": sum(r.get("track_count", 0) for r in releases),
+            "collaborations": collab_count,
+            "presave_campaigns": presave_count,
+            "presave_subscribers": presave_subs[0]["total"] if presave_subs else 0,
+            "goals_active": len([g for g in goals if g.get("status") == "active"]),
+            "goals_completed": len([g for g in goals if g.get("status") == "completed"]),
+        },
+        "releases": releases,
+        "platform_breakdown": [{"platform": p["_id"], "streams": p["count"], "revenue": round(p.get("revenue", 0), 2)} for p in platform_breakdown],
+        "country_breakdown": [{"country": c["_id"], "streams": c["count"]} for c in country_breakdown],
+        "weekly_trends": weekly_trends,
+        "goals": goals[:10],
+    }
+
+@api_router.put("/admin/users/{user_id}/profile")
+async def admin_update_user_profile(user_id: str, update: AdminProfileUpdate, request: Request):
+    """Update user profile fields including bio, socials, etc."""
+    admin = await require_admin(request)
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    now = datetime.now(timezone.utc).isoformat()
+    user_updates = {}
+    profile_updates = {}
+
+    # Fields that go on the user doc
+    for field in ["name", "artist_name", "role", "plan", "status"]:
+        val = getattr(update, field, None)
+        if val is not None:
+            user_updates[field] = val
+
+    # Fields that go on the artist_profiles doc
+    for field in ["bio", "genre", "country", "website", "spotify_url", "apple_music_url", "instagram", "twitter"]:
+        val = getattr(update, field, None)
+        if val is not None:
+            profile_updates[field] = val
+
+    if user_updates:
+        user_updates["updated_at"] = now
+        await db.users.update_one({"id": user_id}, {"$set": user_updates})
+
+    if profile_updates:
+        profile_updates["updated_at"] = now
+        profile_updates["artist_name"] = update.artist_name or user.get("artist_name", "")
+        await db.artist_profiles.update_one(
+            {"user_id": user_id},
+            {"$set": profile_updates},
+            upsert=True
+        )
+
+    await db.admin_actions.insert_one({
+        "id": f"act_{uuid.uuid4().hex[:12]}", "admin_id": admin["id"],
+        "action": "update_profile", "target_type": "user", "target_id": user_id,
+        "notes": str({**user_updates, **profile_updates}), "created_at": now
+    })
+    return {"message": "Profile updated successfully"}
+
+@api_router.get("/admin/analytics")
+async def admin_platform_analytics(request: Request):
+    """Platform-wide analytics for admin dashboard"""
+    await require_admin(request)
+    now = datetime.now(timezone.utc)
+    week_ago = (now - timedelta(days=7)).isoformat()
+    month_ago = (now - timedelta(days=30)).isoformat()
+
+    # Total streams
+    total_streams_result = await db.stream_events.aggregate([
+        {"$group": {"_id": None, "total": {"$sum": 1}}}
+    ]).to_list(1)
+    total_streams = total_streams_result[0]["total"] if total_streams_result else 0
+
+    # This week streams
+    week_streams = await db.stream_events.count_documents({"timestamp": {"$gte": week_ago}})
+
+    # Total revenue from streams
+    rev_result = await db.stream_events.aggregate([
+        {"$match": {"revenue": {"$exists": True}}},
+        {"$group": {"_id": None, "total": {"$sum": "$revenue"}}}
+    ]).to_list(1)
+    total_stream_rev = round(rev_result[0]["total"] if rev_result else 0, 2)
+
+    # Platform breakdown (all artists)
+    platform_breakdown = await db.stream_events.aggregate([
+        {"$group": {"_id": "$platform", "count": {"$sum": 1}, "revenue": {"$sum": {"$ifNull": ["$revenue", 0]}}}},
+        {"$sort": {"count": -1}}, {"$limit": 10}
+    ]).to_list(10)
+
+    # Country breakdown (all artists)
+    country_breakdown = await db.stream_events.aggregate([
+        {"$group": {"_id": "$country", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}, {"$limit": 10}
+    ]).to_list(10)
+
+    # Top artists by streams
+    top_artists_pipeline = [
+        {"$group": {"_id": "$artist_id", "streams": {"$sum": 1}, "revenue": {"$sum": {"$ifNull": ["$revenue", 0]}}}},
+        {"$sort": {"streams": -1}}, {"$limit": 10}
+    ]
+    top_artists_raw = await db.stream_events.aggregate(top_artists_pipeline).to_list(10)
+    top_artists = []
+    for a in top_artists_raw:
+        user = await db.users.find_one({"id": a["_id"]}, {"_id": 0, "id": 1, "name": 1, "artist_name": 1, "plan": 1, "avatar_url": 1})
+        if user:
+            top_artists.append({**user, "streams": a["streams"], "revenue": round(a.get("revenue", 0), 2)})
+
+    # Monthly trend (last 6 months)
+    monthly_trend = []
+    for m in range(6):
+        end = now.replace(day=1) - timedelta(days=30 * m)
+        start = end - timedelta(days=30)
+        count = await db.stream_events.count_documents({
+            "timestamp": {"$gte": start.isoformat(), "$lt": end.isoformat()}
+        })
+        monthly_trend.append({"month": end.strftime("%b %Y"), "streams": count})
+    monthly_trend.reverse()
+
+    # Active users (logged in last 30 days approximation - users with recent streams)
+    active_artists_result = await db.stream_events.aggregate([
+        {"$match": {"timestamp": {"$gte": month_ago}}},
+        {"$group": {"_id": "$artist_id"}},
+        {"$count": "total"}
+    ]).to_list(1)
+
+    return {
+        "total_streams": total_streams,
+        "week_streams": week_streams,
+        "total_stream_revenue": total_stream_rev,
+        "platform_breakdown": [{"platform": p["_id"], "streams": p["count"], "revenue": round(p.get("revenue", 0), 2)} for p in platform_breakdown],
+        "country_breakdown": [{"country": c["_id"], "streams": c["count"]} for c in country_breakdown],
+        "top_artists": top_artists,
+        "monthly_trend": monthly_trend,
+        "active_artists": active_artists_result[0]["total"] if active_artists_result else 0,
+    }
+
 # ============= SPLIT PAYMENTS =============
 @api_router.post("/splits")
 async def create_split(split: SplitCreate, request: Request):

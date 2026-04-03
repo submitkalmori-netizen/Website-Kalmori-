@@ -4,6 +4,7 @@ import { API } from '../App';
 import AdminLayout from '../components/AdminLayout';
 import { Users, MagnifyingGlass, CaretLeft, CaretRight, PencilSimple, X } from '@phosphor-icons/react';
 import { Button } from '../components/ui/button';
+import { Link } from 'react-router-dom';
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -125,9 +126,14 @@ const AdminUsersPage = () => {
                       <td className="py-3 px-4 text-sm font-mono text-gray-400">{u.release_count}</td>
                       <td className="py-3 px-4 text-xs text-gray-500">{new Date(u.created_at).toLocaleDateString()}</td>
                       <td className="py-3 px-4">
-                        <button onClick={() => openEdit(u)} className="text-xs text-[#7C4DFF] hover:underline flex items-center gap-1" data-testid={`edit-user-${u.id}`}>
-                          <PencilSimple className="w-4 h-4" /> Edit
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <Link to={`/admin/users/${u.id}`} className="text-xs text-[#E53935] hover:underline flex items-center gap-1" data-testid={`view-user-${u.id}`}>
+                            View
+                          </Link>
+                          <button onClick={() => openEdit(u)} className="text-xs text-[#7C4DFF] hover:underline flex items-center gap-1" data-testid={`edit-user-${u.id}`}>
+                            <PencilSimple className="w-3.5 h-3.5" /> Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
