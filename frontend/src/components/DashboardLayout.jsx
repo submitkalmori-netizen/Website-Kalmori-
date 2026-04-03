@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { Button } from './ui/button';
-import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check, UsersThree, Megaphone, HeartStraight, Lightning, CurrencyDollar, Trophy, Target } from '@phosphor-icons/react';
+import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check, UsersThree, Megaphone, HeartStraight, Lightning, CurrencyDollar, Trophy, Target, Buildings } from '@phosphor-icons/react';
 import axios from 'axios';
 import { API } from '../App';
 
@@ -115,6 +115,7 @@ const DashboardLayout = ({ children }) => {
 
   const navItems = [
     { path: '/dashboard', icon: <House className="w-5 h-5" />, label: 'Dashboard' },
+    ...(user?.user_role === 'label_producer' ? [{ path: '/label', icon: <Buildings className="w-5 h-5" />, label: 'Label Dashboard' }] : []),
     { path: '/releases', icon: <Disc className="w-5 h-5" />, label: 'Releases' },
     { path: '/analytics', icon: <ChartLineUp className="w-5 h-5" />, label: 'Analytics' },
     { path: '/wallet', icon: <Wallet className="w-5 h-5" />, label: 'Wallet' },

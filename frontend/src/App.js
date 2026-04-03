@@ -48,6 +48,7 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import GoalsPage from './pages/GoalsPage';
 import ArtistProfilePage from './pages/ArtistProfilePage';
 import RoleSelectionPage from './pages/RoleSelectionPage';
+import LabelDashboardPage from './pages/LabelDashboardPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -279,6 +280,7 @@ const AppRouter = () => {
       <Route path="/presave/:campaignId" element={<PreSaveLandingPage />} />
       <Route path="/artist/:slug" element={<ArtistProfilePage />} />
       <Route path="/select-role" element={<RoleSelectionPage />} />
+      <Route path="/label" element={<ProtectedRoute><LabelDashboardPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
       <Route path="/admin/submissions" element={<AdminRoute><AdminSubmissionsPage /></AdminRoute>} />
