@@ -57,15 +57,24 @@ def email_base(header_gradient: str, header_title: str, body_html: str, footer_t
 
 async def send_welcome_email(user_email: str, user_name: str, user_role: str = "artist"):
     """Send a branded welcome email when a new user signs up"""
-    role_label = "producer" if user_role == "producer" else "artist"
+    if user_role == "label_producer":
+        role_label = "Label / Producer"
+        role_desc = "manage your artists, distribute catalogs, and track royalties"
+        step2 = "Add your artists and start distributing their music to <strong style=\"color:#fff;\">150+ streaming platforms</strong>"
+        step3 = "Use our <strong style=\"color:#fff;\">AI Release Strategy</strong> to optimize every release"
+    else:
+        role_label = "Artist"
+        role_desc = "get your music heard worldwide"
+        step2 = "Set up your <strong style=\"color:#fff;\">Artist Profile</strong> — your public link-in-bio page"
+        step3 = "Use our <strong style=\"color:#fff;\">AI Release Strategy</strong> to plan your next drop"
     body = f"""<p style="color:#ccc;font-size:15px;margin:0 0 16px;">Yo {user_name}!</p>
-    <p style="color:#999;font-size:14px;line-height:1.7;margin:0 0 20px;">Welcome to the <strong style="color:#E040FB;">Kalmori</strong> family! You just took the first step toward getting your music heard worldwide. We're hype to have you on board.</p>
+    <p style="color:#999;font-size:14px;line-height:1.7;margin:0 0 20px;">Welcome to the <strong style="color:#E040FB;">Kalmori</strong> family! You just took the first step to {role_desc}. We're hype to have you on board as a <strong style="color:#FFD700;">{role_label}</strong>.</p>
     <div style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin:20px 0;">
     <p style="color:#E040FB;font-size:13px;font-weight:bold;margin:0 0 12px;text-transform:uppercase;letter-spacing:2px;">Here's what you can do right now:</p>
     <table style="width:100%;border-collapse:collapse;">
     <tr><td style="padding:8px 0;color:#7C4DFF;font-size:20px;width:30px;vertical-align:top;">1</td><td style="padding:8px 0;color:#ccc;font-size:13px;">Upload your first release and distribute to <strong style="color:#fff;">150+ streaming platforms</strong></td></tr>
-    <tr><td style="padding:8px 0;color:#7C4DFF;font-size:20px;width:30px;vertical-align:top;">2</td><td style="padding:8px 0;color:#ccc;font-size:13px;">Set up your <strong style="color:#fff;">Artist Profile</strong> — your public link-in-bio page</td></tr>
-    <tr><td style="padding:8px 0;color:#7C4DFF;font-size:20px;width:30px;vertical-align:top;">3</td><td style="padding:8px 0;color:#ccc;font-size:13px;">Use our <strong style="color:#fff;">AI Release Strategy</strong> to plan your next drop</td></tr>
+    <tr><td style="padding:8px 0;color:#7C4DFF;font-size:20px;width:30px;vertical-align:top;">2</td><td style="padding:8px 0;color:#ccc;font-size:13px;">{step2}</td></tr>
+    <tr><td style="padding:8px 0;color:#7C4DFF;font-size:20px;width:30px;vertical-align:top;">3</td><td style="padding:8px 0;color:#ccc;font-size:13px;">{step3}</td></tr>
     <tr><td style="padding:8px 0;color:#7C4DFF;font-size:20px;width:30px;vertical-align:top;">4</td><td style="padding:8px 0;color:#ccc;font-size:13px;">Track your streams, revenue, and fan analytics in real-time</td></tr>
     </table></div>
     <div style="text-align:center;margin:28px 0 16px;">
@@ -74,11 +83,11 @@ async def send_welcome_email(user_email: str, user_name: str, user_role: str = "
     <p style="color:#888;font-size:13px;text-align:center;">Let's get your music out there. The world is waiting.</p>"""
     html = email_base(
         "linear-gradient(135deg,#7C4DFF 0%,#E040FB 50%,#FF4081 100%)",
-        f"Welcome to Kalmori, {role_label.title()}!",
+        f"Welcome to Kalmori, {role_label}!",
         body,
         "You're receiving this because you just signed up at Kalmori. Let's go!"
     )
-    await send_email(user_email, f"Welcome to Kalmori! Let's get your music worldwide", html)
+    await send_email(user_email, f"Welcome to Kalmori, {role_label}! Let's get your music worldwide", html)
 
 
 async def send_beat_purchase_receipt(user_email: str, user_name: str, beat_title: str, license_type: str, amount: float, receipt_id: str):

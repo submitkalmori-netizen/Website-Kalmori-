@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { GoogleLogo, Eye, EyeSlash, CaretDown, Check } from '@phosphor-icons/react';
+import { GoogleLogo, Eye, EyeSlash, CaretDown, Check, CheckCircle, WarningCircle, MusicNotes, ArrowRight, Plus } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import ReCAPTCHA from 'react-google-recaptcha';
 
@@ -31,278 +31,372 @@ const COUNTRIES = [
 ].sort();
 
 const RegisterPage = () => {
-  const [legalName, setLegalName] = useState('');
-  const [stageName, setStageName] = useState('');
+  const [step, setStep] = useState(1);
+
+  // Step 1 fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [country, setCountry] = useState('');
-  const [state, setState] = useState('');
-  const [town, setTown] = useState('');
-  const [postCode, setPostCode] = useState('');
-  const [userRole, setUserRole] = useState('artist');
   const [showPassword, setShowPassword] = useState(false);
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [countrySearch, setCountrySearch] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState(null);
   const recaptchaRef = useRef(null);
+
+  // Step 2 fields
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [showCompany, setShowCompany] = useState(false);
+  const [companyName, setCompanyName] = useState('');
+  const [country, setCountry] = useState('');
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [address, setAddress] = useState('');
+  const [address2, setAddress2] = useState('');
+  const [showAddress2, setShowAddress2] = useState(false);
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [postCode, setPostCode] = useState('');
+  const [phone, setPhone] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const filteredCountries = COUNTRIES.filter(c =>
-    c.toLowerCase().includes(countrySearch.toLowerCase())
-  );
+  // Password validation
+  const pwChecks = {
+    length: password.length >= 12,
+    number: /\d/.test(password),
+    capital: /[A-Z]/.test(password),
+    noSpaces: !password.includes(' '),
+  };
+  const pwValid = pwChecks.length && pwChecks.number && pwChecks.capital && pwChecks.noSpaces;
 
-  const handleRegister = async (e) => {
+  const filteredCountries = COUNTRIES.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()));
+
+  const handleStep1 = (e) => {
     e.preventDefault();
     setError('');
-
-    if (!legalName.trim()) { setError('Name is required'); return; }
     if (!email.trim()) { setError('Email is required'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters long and contain at least 1 upper case letter, 1 number, and one special character'); return; }
-    if (password !== confirmPassword) { setError('Passwords do not match'); return; }
+    if (!pwValid) { setError('Password does not meet the requirements'); return; }
     if (!agreedToTerms) { setError('You must agree to the Terms & Conditions'); return; }
-    if (!recaptchaToken) { setError('Please complete the reCAPTCHA verification'); return; }
+    if (!recaptchaToken && process.env.REACT_APP_RECAPTCHA_SITE_KEY) { setError('Please complete the reCAPTCHA verification'); return; }
+    setStep(2);
+  };
+
+  const handleStep2 = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!firstName.trim()) { setError('First name is required'); return; }
+    if (!lastName.trim()) { setError('Last name is required'); return; }
 
     setLoading(true);
     try {
       await register({
-        name: legalName,
-        artist_name: stageName || legalName,
+        name: `${firstName} ${lastName}`,
+        artist_name: `${firstName} ${lastName}`,
         email,
         password,
-        user_role: userRole,
-        legal_name: legalName,
+        user_role: 'artist',
+        legal_name: `${firstName} ${lastName}`,
+        company_name: companyName,
         country,
         state,
-        town,
+        town: city,
+        address,
+        address_2: address2,
         post_code: postCode,
+        phone,
         recaptcha_token: recaptchaToken,
       });
-      toast.success('Account created successfully!');
-      navigate('/dashboard');
+      toast.success('Account created!');
+      navigate('/select-role');
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || err.message || 'Registration failed';
-      setError(typeof errorMsg === 'string' ? errorMsg : 'Registration failed');
-      toast.error(typeof errorMsg === 'string' ? errorMsg : 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
+      const msg = err.response?.data?.detail || 'Registration failed';
+      setError(typeof msg === 'string' ? msg : 'Registration failed');
+      toast.error(typeof msg === 'string' ? msg : 'Registration failed');
+    } finally { setLoading(false); }
   };
 
   const handleGoogleLogin = () => {
-    const redirectUrl = window.location.origin + '/dashboard';
+    const redirectUrl = window.location.origin + '/select-role';
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
 
-  const inputClass = "w-full bg-transparent border border-gray-600 rounded px-4 py-3 text-white text-sm focus:outline-none focus:border-[#E040FB] transition-colors";
+  const inputCls = "w-full bg-white border border-[#d0d5dd] rounded-lg px-4 py-3 text-black text-sm focus:outline-none focus:border-[#00BCD4] focus:ring-2 focus:ring-[#00BCD4]/20 transition-all";
 
   return (
     <div className="min-h-screen relative flex items-start justify-center overflow-y-auto">
-      {/* Purple-pink gradient background */}
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #7C4DFF 0%, #9C27B0 30%, #E040FB 70%, #FF4081 100%)' }} />
-      <div className="absolute inset-0 bg-black/50" />
+      {/* Dark abstract background */}
+      <div className="absolute inset-0 bg-[#0a0a14]" />
+      <div className="absolute inset-0 opacity-30" style={{
+        background: 'radial-gradient(ellipse at 50% 80%, rgba(0,188,212,0.15) 0%, transparent 60%), radial-gradient(ellipse at 20% 20%, rgba(124,77,255,0.1) 0%, transparent 50%)'
+      }} />
 
-      <div className="relative z-10 w-full max-w-[680px] mx-auto px-6 py-10 text-center">
-        {/* Header */}
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
-          Join <span style={{ color: '#E040FB' }}>Kalmori</span>
-        </h1>
-        <p className="text-gray-500 text-sm mb-6">Start distributing your music to 150+ platforms worldwide</p>
+      <div className="relative z-10 w-full max-w-lg mx-auto px-4 py-10">
+        {/* Step 1: Email + Password */}
+        {step === 1 && (
+          <div className="text-center">
+            {/* Header */}
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <MusicNotes className="w-6 h-6 text-[#E040FB]" weight="fill" />
+              <span className="text-sm font-black tracking-[4px] text-white/60">KALMORI</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-[#FFD700] mb-1">Sign up for free.</h1>
+            <p className="text-white text-lg mb-8">Create your Kalmori account.</p>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-5 text-sm text-left" data-testid="register-error">
-            {error}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-4 text-sm text-left" data-testid="register-error">{error}</div>
+            )}
+
+            {/* White card */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 text-left shadow-2xl">
+              <form onSubmit={handleStep1} className="space-y-5">
+                {/* Email */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">Email</label>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                    className={inputCls} required data-testid="register-email-input" />
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">Password</label>
+                  <div className="relative">
+                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                      className={`${inputCls} pr-10`} required data-testid="register-password-input" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      data-testid="toggle-password-visibility">
+                      {showPassword ? <EyeSlash className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Password Requirements Box */}
+                <div className="bg-[#E0F7FA] rounded-xl p-4 space-y-2" data-testid="password-requirements">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className={`w-5 h-5 flex-shrink-0 ${password.length > 0 && pwChecks.length && pwChecks.number && pwChecks.capital ? 'text-[#4CAF50]' : 'text-gray-400'}`} weight="fill" />
+                    <span className="text-sm font-semibold text-gray-800">Your Password must use:</span>
+                  </div>
+                  <ul className="ml-7 space-y-1">
+                    <li className={`text-sm flex items-center gap-1.5 ${pwChecks.length ? 'text-[#4CAF50]' : 'text-gray-600'}`}>
+                      {pwChecks.length && <Check className="w-3 h-3" weight="bold" />} at least 12 characters
+                    </li>
+                    <li className={`text-sm flex items-center gap-1.5 ${pwChecks.number ? 'text-[#4CAF50]' : 'text-gray-600'}`}>
+                      {pwChecks.number && <Check className="w-3 h-3" weight="bold" />} at least 1 number
+                    </li>
+                    <li className={`text-sm flex items-center gap-1.5 ${pwChecks.capital ? 'text-[#4CAF50]' : 'text-gray-600'}`}>
+                      {pwChecks.capital && <Check className="w-3 h-3" weight="bold" />} at least 1 capital letter
+                    </li>
+                  </ul>
+                  <div className="flex items-center gap-2 mt-2">
+                    <WarningCircle className={`w-5 h-5 flex-shrink-0 ${password.length > 0 && !pwChecks.noSpaces ? 'text-red-500' : 'text-red-400'}`} weight="fill" />
+                    <span className="text-sm font-semibold text-gray-800">Do NOT use spaces or a recently used password</span>
+                  </div>
+                </div>
+
+                {/* Terms */}
+                <div className="flex items-start gap-3">
+                  <button type="button" onClick={() => setAgreedToTerms(!agreedToTerms)}
+                    className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
+                      agreedToTerms ? 'bg-[#00BCD4] border-[#00BCD4]' : 'border-gray-300 hover:border-gray-400'
+                    }`} data-testid="terms-checkbox">
+                    {agreedToTerms && <Check className="w-3.5 h-3.5 text-white" weight="bold" />}
+                  </button>
+                  <span className="text-sm text-gray-600 leading-relaxed">
+                    I have read, understood, and agree to the{' '}
+                    <Link to="/terms" className="text-[#00BCD4] font-semibold hover:underline">Terms of Service</Link>,{' '}
+                    <Link to="/privacy" className="text-[#00BCD4] font-semibold hover:underline">Privacy Policy</Link>, and{' '}
+                    <Link to="/agreement" className="text-[#00BCD4] font-semibold hover:underline">Kalmori Artist Agreement</Link>, and I am at least 13 years old.
+                  </span>
+                </div>
+
+                {/* reCAPTCHA */}
+                {process.env.REACT_APP_RECAPTCHA_SITE_KEY && (
+                  <div className="flex justify-center" data-testid="recaptcha-container">
+                    <ReCAPTCHA ref={recaptchaRef} sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+                      onChange={(token) => setRecaptchaToken(token)} onExpired={() => setRecaptchaToken(null)}
+                      theme="light" size="normal" />
+                  </div>
+                )}
+
+                {/* Submit */}
+                <button type="submit"
+                  className="w-full bg-[#FFD700] hover:bg-[#FFC107] text-black text-base font-bold py-3.5 rounded-full transition-all active:scale-[0.98]"
+                  data-testid="register-submit-btn">
+                  Sign Up
+                </button>
+              </form>
+            </div>
+
+            <p className="mt-5 text-sm text-gray-400">
+              Already have an account? <Link to="/login" className="text-[#FFD700] hover:underline" data-testid="login-link">Log in</Link>
+            </p>
+
+            {/* Divider */}
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700" /></div>
+              <div className="relative flex justify-center"><span className="px-4 bg-[#0a0a14] text-xs text-gray-500">or</span></div>
+            </div>
+
+            <button type="button" onClick={handleGoogleLogin}
+              className="w-full border border-gray-600 hover:border-gray-400 text-white py-3 rounded-full flex items-center justify-center gap-2 transition-all text-sm font-medium"
+              data-testid="google-register-btn">
+              <GoogleLogo className="w-5 h-5" weight="bold" /> Continue with Google
+            </button>
           </div>
         )}
 
-        {/* Dark card container — wider */}
-        <div className="bg-[#0d0d0d] border border-gray-800 rounded-xl p-6 sm:p-8 text-left">
-          {/* Role Toggle */}
-          <div className="mb-5">
-            <label className="block text-gray-400 text-sm mb-2">I am a</label>
-            <div className="flex gap-3">
-              {['artist', 'producer'].map((role) => (
-                <button
-                  key={role} type="button" onClick={() => setUserRole(role)}
-                  className={`flex-1 py-2.5 rounded-full text-sm font-bold tracking-[1px] uppercase transition-all ${
-                    userRole === role
-                      ? 'bg-[#E040FB] text-white'
-                      : 'bg-transparent border border-gray-600 text-gray-400 hover:border-gray-400'
-                  }`}
-                  data-testid={`role-${role}-btn`}
-                >
-                  {role}
+        {/* Step 2: Personal Details */}
+        {step === 2 && (
+          <div className="text-center">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <MusicNotes className="w-5 h-5 text-[#E040FB]" weight="fill" />
+                <span className="text-xs font-black tracking-[4px] text-white/60">KALMORI</span>
+              </div>
+              <button onClick={() => { setStep(1); setError(''); }} className="text-sm text-gray-400 hover:text-white transition-colors" data-testid="back-to-step1">
+                Back
+              </button>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-[#FFD700] mb-1">You're one step closer.</h1>
+            <p className="text-white text-lg mb-8">Let's finish creating your account.</p>
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg mb-4 text-sm text-left" data-testid="register-error-step2">{error}</div>
+            )}
+
+            {/* White card */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 text-left shadow-2xl">
+              <form onSubmit={handleStep2} className="space-y-5">
+                {/* First Name */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">First name</label>
+                  <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                    className={inputCls} required data-testid="register-first-name" />
+                </div>
+
+                {/* Last Name */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">Last name</label>
+                  <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)}
+                    className={inputCls} required data-testid="register-last-name" />
+                </div>
+
+                {/* Add Company/Record Label */}
+                {!showCompany ? (
+                  <button type="button" onClick={() => setShowCompany(true)}
+                    className="flex items-center gap-2 text-[#00BCD4] text-sm font-semibold hover:underline"
+                    data-testid="add-company-btn">
+                    <div className="w-6 h-6 rounded-full bg-[#00BCD4] flex items-center justify-center">
+                      <Plus className="w-3.5 h-3.5 text-white" weight="bold" />
+                    </div>
+                    Add a company or record label
+                  </button>
+                ) : (
+                  <div>
+                    <label className="block text-gray-700 text-sm font-medium mb-1.5">Company / Record Label</label>
+                    <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
+                      className={inputCls} placeholder="Enter company or label name" data-testid="register-company" />
+                  </div>
+                )}
+
+                {/* Country */}
+                <div className="relative">
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">Country of residence</label>
+                  <button type="button" onClick={() => setShowCountryPicker(!showCountryPicker)}
+                    className="w-full flex items-center justify-between bg-white border border-[#d0d5dd] rounded-lg px-4 py-3 text-left hover:border-[#00BCD4] transition-colors"
+                    data-testid="register-country-picker">
+                    <span className={`text-sm ${country ? 'text-black' : 'text-gray-400'}`}>
+                      {country || '- Select a Country -'}
+                    </span>
+                    <CaretDown className={`w-4 h-4 text-gray-400 transition-transform ${showCountryPicker ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showCountryPicker && (
+                    <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-2xl max-h-56 overflow-hidden">
+                      <div className="p-2 border-b border-gray-100">
+                        <input placeholder="Search country..." value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-black text-sm focus:outline-none focus:border-[#00BCD4]"
+                          autoFocus data-testid="country-search-input" />
+                      </div>
+                      <div className="overflow-y-auto max-h-44">
+                        {filteredCountries.map((c) => (
+                          <button key={c} type="button"
+                            onClick={() => { setCountry(c); setShowCountryPicker(false); setCountrySearch(''); }}
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#E0F7FA] transition-colors ${
+                              country === c ? 'text-[#00BCD4] bg-[#E0F7FA] font-medium' : 'text-gray-700'
+                            }`}>{c}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Address */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">Address</label>
+                  <input type="text" value={address} onChange={(e) => setAddress(e.target.value)}
+                    className={inputCls} data-testid="register-address" />
+                </div>
+
+                {/* Add another address line */}
+                {!showAddress2 ? (
+                  <button type="button" onClick={() => setShowAddress2(true)}
+                    className="flex items-center gap-2 text-[#00BCD4] text-sm font-semibold hover:underline"
+                    data-testid="add-address2-btn">
+                    <div className="w-6 h-6 rounded-full bg-[#00BCD4] flex items-center justify-center">
+                      <Plus className="w-3.5 h-3.5 text-white" weight="bold" />
+                    </div>
+                    Add another address line
+                  </button>
+                ) : (
+                  <div>
+                    <label className="block text-gray-700 text-sm font-medium mb-1.5">Address line 2</label>
+                    <input type="text" value={address2} onChange={(e) => setAddress2(e.target.value)}
+                      className={inputCls} data-testid="register-address2" />
+                  </div>
+                )}
+
+                {/* City / Town */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">City / Town</label>
+                  <input type="text" value={city} onChange={(e) => setCity(e.target.value)}
+                    className={inputCls} data-testid="register-city" />
+                </div>
+
+                {/* State / Province */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">State / Province / Territory</label>
+                  <input type="text" value={state} onChange={(e) => setState(e.target.value)}
+                    className={inputCls} data-testid="register-state" />
+                </div>
+
+                {/* ZIP / Postal Code */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">ZIP / Postal Code</label>
+                  <input type="text" value={postCode} onChange={(e) => setPostCode(e.target.value)}
+                    className={inputCls} data-testid="register-postcode" />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1.5">Phone</label>
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                    className={inputCls} data-testid="register-phone" />
+                </div>
+
+                {/* Submit */}
+                <button type="submit" disabled={loading}
+                  className="w-full bg-[#FFD700] hover:bg-[#FFC107] text-black text-base font-bold py-3.5 rounded-full transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  data-testid="complete-signup-btn">
+                  {loading ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <>Complete Sign-Up <ArrowRight className="w-5 h-5" /></>}
                 </button>
-              ))}
+              </form>
             </div>
           </div>
-
-          <form onSubmit={handleRegister} className="space-y-4">
-            {/* Row 1: Name + Stage Name */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-400 text-sm mb-1.5">Name *</label>
-                <input type="text" value={legalName} onChange={(e) => setLegalName(e.target.value)}
-                  className={inputClass} required data-testid="register-legal-name" />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-1.5">Stage / Artist Name</label>
-                <input type="text" value={stageName} onChange={(e) => setStageName(e.target.value)}
-                  className={inputClass} data-testid="register-stage-name" />
-              </div>
-            </div>
-
-            {/* Row 2: Email (full width) */}
-            <div>
-              <label className="block text-gray-400 text-sm mb-1.5">Email Address *</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                className={inputClass} required data-testid="register-email-input" />
-            </div>
-
-            {/* Row 3: Password + Confirm Password */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-400 text-sm mb-1.5">Password *</label>
-                <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                    className={`${inputClass} pr-10`} required data-testid="register-password-input" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                    data-testid="toggle-password-visibility">
-                    {showPassword ? <EyeSlash className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-1.5">Confirm Password *</label>
-                <input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={inputClass} required data-testid="register-confirm-password-input" />
-              </div>
-            </div>
-            <p className="text-gray-600 text-xs leading-relaxed -mt-1">
-              Min 8 characters with 1 uppercase, 1 number, and 1 special character
-            </p>
-
-            {/* Row 4: Country (full width) */}
-            <div className="relative">
-              <label className="block text-gray-400 text-sm mb-1.5">Country/Territory</label>
-              <button type="button" onClick={() => setShowCountryPicker(!showCountryPicker)}
-                className="w-full flex items-center justify-between bg-transparent border border-gray-600 rounded px-4 py-3 text-left hover:border-gray-400 transition-colors"
-                data-testid="register-country-picker">
-                <span className={`text-sm ${country ? 'text-white' : 'text-gray-500'}`}>
-                  {country || 'Choose Country/Territory'}
-                </span>
-                <CaretDown className={`w-4 h-4 text-gray-500 transition-transform ${showCountryPicker ? 'rotate-180' : ''}`} />
-              </button>
-              {showCountryPicker && (
-                <div className="absolute z-50 mt-1 w-full bg-[#111] border border-gray-700 rounded-lg shadow-2xl max-h-56 overflow-hidden">
-                  <div className="p-2 border-b border-gray-700">
-                    <input placeholder="Search country..." value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)}
-                      className="w-full bg-[#0a0a0a] border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-[#E040FB]"
-                      autoFocus data-testid="country-search-input" />
-                  </div>
-                  <div className="overflow-y-auto max-h-44">
-                    {filteredCountries.map((c) => (
-                      <button key={c} type="button"
-                        onClick={() => { setCountry(c); setShowCountryPicker(false); setCountrySearch(''); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors ${
-                          country === c ? 'text-[#E040FB] bg-[#E040FB]/5' : 'text-gray-300'
-                        }`}>
-                        {c}
-                      </button>
-                    ))}
-                    {filteredCountries.length === 0 && (
-                      <p className="px-4 py-3 text-sm text-gray-500">No countries found</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Row 5: State + Town + Post Code */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-gray-400 text-sm mb-1.5">State / Province</label>
-                <input type="text" value={state} onChange={(e) => setState(e.target.value)}
-                  className={inputClass} data-testid="register-state" />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-1.5">Town / City</label>
-                <input type="text" value={town} onChange={(e) => setTown(e.target.value)}
-                  className={inputClass} data-testid="register-town" />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-1.5">Post Code / ZIP</label>
-                <input type="text" value={postCode} onChange={(e) => setPostCode(e.target.value)}
-                  className={inputClass} data-testid="register-postcode" />
-              </div>
-            </div>
-
-            {/* Terms + reCAPTCHA row */}
-            <div className="pt-2 space-y-4">
-              {/* Terms checkbox — styled with colored text */}
-              <div className="flex items-start gap-3">
-                <button type="button" onClick={() => setAgreedToTerms(!agreedToTerms)}
-                  className={`w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
-                    agreedToTerms ? 'bg-[#E040FB] border-[#E040FB]' : 'border-gray-600 hover:border-gray-400'
-                  }`}
-                  data-testid="terms-checkbox">
-                  {agreedToTerms && <Check className="w-3.5 h-3.5 text-white" weight="bold" />}
-                </button>
-                <span className="text-sm">
-                  <span className="text-[#E040FB]">I Agree</span> to the Kalmori{' '}
-                  <Link to="/terms" className="text-[#7C4DFF] font-semibold hover:underline">Terms & Conditions</Link>
-                  {' '}and{' '}
-                  <Link to="/privacy" className="text-[#7C4DFF] font-semibold hover:underline">Privacy Policy</Link>
-                </span>
-              </div>
-
-              {/* reCAPTCHA — smaller feel */}
-              {process.env.REACT_APP_RECAPTCHA_SITE_KEY && (
-                <div className="flex justify-center" data-testid="recaptcha-container">
-                  <ReCAPTCHA
-                    ref={recaptchaRef}
-                    sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
-                    onChange={(token) => setRecaptchaToken(token)}
-                    onExpired={() => setRecaptchaToken(null)}
-                    theme="dark"
-                    size="normal"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Submit */}
-            <div className="flex justify-center pt-2">
-              <button type="submit" disabled={loading}
-                className="bg-[#E040FB] hover:brightness-110 text-white text-sm font-bold tracking-[1.5px] uppercase px-12 py-3 rounded-full transition-all min-w-[140px]"
-                data-testid="register-submit-btn">
-                {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" /> : 'SIGN UP'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <p className="mt-5 text-sm text-gray-400">
-          Already have an account?{' '}
-          <Link to="/login" className="text-[#E040FB] hover:underline" data-testid="login-link">Login</Link>
-        </p>
-
-        {/* Divider */}
-        <div className="relative my-5">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800" /></div>
-          <div className="relative flex justify-center"><span className="px-4 bg-black text-xs text-gray-500">or</span></div>
-        </div>
-
-        <button type="button" onClick={handleGoogleLogin}
-          className="w-full max-w-[680px] border border-gray-700 hover:border-gray-500 text-white py-3 rounded-full flex items-center justify-center gap-2 transition-all text-sm font-medium"
-          data-testid="google-register-btn">
-          <GoogleLogo className="w-5 h-5" weight="bold" /> Continue with Google
-        </button>
+        )}
       </div>
     </div>
   );

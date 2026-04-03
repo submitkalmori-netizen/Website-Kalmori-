@@ -95,6 +95,24 @@ async def register(user_data: UserCreate, response: Response):
         logger.warning(f"Welcome email failed: {e}")
     return {"access_token": access_token, "refresh_token": refresh_token, "user": user_doc}
 
+class SetRoleInput(BaseModel):
+    role: str
+
+@api_router.put("/auth/set-role")
+async def set_user_role(data: SetRoleInput, request: Request):
+    """Set user role after registration (artist or label_producer)"""
+    user = await get_current_user(request)
+    if data.role not in ["artist", "label_producer"]:
+        raise HTTPException(status_code=400, detail="Role must be 'artist' or 'label_producer'")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"user_role": data.role, "role": data.role if data.role == "admin" else user.get("role", "artist")}})
+    # Update artist_profiles with role
+    await db.artist_profiles.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"user_role": data.role, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"message": "Role updated", "role": data.role}
+
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin, response: Response):
     email = credentials.email.lower()

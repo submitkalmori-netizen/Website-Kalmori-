@@ -118,7 +118,16 @@ export default function ReleaseWizardPage() {
   const [bookletName, setBookletName] = useState('');
 
   // Tracks
-  const [volumes, setVolumes] = useState([{ id: 1, tracks: [{ title: '', track_number: 1, explicit: false, audioFile: null, audioName: '', isrc: '' }] }]);
+  const defaultTrack = {
+    title: '', title_version: '', track_number: 1, explicit: false,
+    audioFile: null, audioName: '', isrc: '', dolby_atmos_isrc: '', iswc: '',
+    audio_language: 'English', production: '', publisher: '',
+    preview_start: '00:30', preview_end: '00:00',
+    artists: [{ role: 'Main Artist', name: '' }],
+    main_contributors: [{ role: 'Composer', name: '' }, { role: 'Lyricist', name: '' }],
+    contributors: [],
+  };
+  const [volumes, setVolumes] = useState([{ id: 1, tracks: [{ ...defaultTrack }] }]);
 
   // Territory
   const [territory, setTerritory] = useState('worldwide');
@@ -155,7 +164,7 @@ export default function ReleaseWizardPage() {
   // Track management
   const addTrack = (volIdx) => {
     setVolumes(prev => prev.map((v, i) => i === volIdx ? {
-      ...v, tracks: [...v.tracks, { title: '', track_number: v.tracks.length + 1, explicit: false, audioFile: null, audioName: '', isrc: '' }]
+      ...v, tracks: [...v.tracks, { ...defaultTrack, track_number: v.tracks.length + 1 }]
     } : v));
   };
 
@@ -183,7 +192,7 @@ export default function ReleaseWizardPage() {
   };
 
   const addVolume = () => {
-    setVolumes(prev => [...prev, { id: prev.length + 1, tracks: [{ title: '', track_number: 1, explicit: false, audioFile: null, audioName: '', isrc: '' }] }]);
+    setVolumes(prev => [...prev, { id: prev.length + 1, tracks: [{ ...defaultTrack }] }]);
   };
 
   // Validation
@@ -471,17 +480,26 @@ export default function ReleaseWizardPage() {
                   </div>
 
                   {/* Track List */}
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {vol.tracks.map((track, trackIdx) => (
-                      <div key={trackIdx} className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 space-y-3" data-testid={`track-${trackIdx}`}>
+                      <div key={trackIdx} className="bg-[#0a0a14] border border-white/5 rounded-xl p-5 space-y-5" data-testid={`track-${trackIdx}`}>
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-gray-500 tracking-wider">TRACK {track.track_number}</span>
                           {vol.tracks.length > 1 && (
                             <button onClick={() => removeTrack(volIdx, trackIdx)} className="text-gray-600 hover:text-red-400 p-1 transition-colors"><Trash className="w-4 h-4" /></button>
                           )}
                         </div>
-                        <InputField value={track.title} onChange={e => updateTrack(volIdx, trackIdx, 'title', e.target.value)}
-                          placeholder="Track title" testId={`track-title-${trackIdx}`} />
+
+                        {/* === TITLE === */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-[#7C4DFF] uppercase tracking-wider">Title</h4>
+                          <InputField value={track.title} onChange={e => updateTrack(volIdx, trackIdx, 'title', e.target.value)}
+                            placeholder="Track title *" testId={`track-title-${trackIdx}`} />
+                          <InputField value={track.title_version || ''} onChange={e => updateTrack(volIdx, trackIdx, 'title_version', e.target.value)}
+                            placeholder="Title Version (e.g. Remix, Acoustic)" testId={`track-title-version-${trackIdx}`} />
+                        </div>
+
+                        {/* === AUDIO FILE === */}
                         <div className="flex items-center gap-3">
                           <label className="flex-1 cursor-pointer">
                             <div className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-colors ${track.audioName ? 'border-[#4CAF50]/30 bg-[#4CAF50]/5' : 'border-white/10 hover:border-[#7C4DFF]/30'}`}>
@@ -497,6 +515,186 @@ export default function ReleaseWizardPage() {
                             </div>
                             Explicit
                           </label>
+                        </div>
+
+                        {/* === INFORMATION === */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-[#E040FB] uppercase tracking-wider">Information</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <InputField value={track.isrc} onChange={e => updateTrack(volIdx, trackIdx, 'isrc', e.target.value)}
+                                  placeholder="Audio ISRC *" testId={`track-isrc-${trackIdx}`} />
+                              </div>
+                              <button type="button" onClick={() => {
+                                const isrc = 'US' + 'KAL' + new Date().getFullYear().toString().slice(-2) + Math.floor(10000 + Math.random() * 90000);
+                                updateTrack(volIdx, trackIdx, 'isrc', isrc);
+                              }} className="px-3 py-2 text-[10px] font-bold text-[#7C4DFF] border border-[#7C4DFF]/30 rounded-lg hover:bg-[#7C4DFF]/10 transition-colors whitespace-nowrap"
+                                data-testid={`generate-isrc-${trackIdx}`}>
+                                Generate ISRC
+                              </button>
+                            </div>
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <InputField value={track.dolby_atmos_isrc || ''} onChange={e => updateTrack(volIdx, trackIdx, 'dolby_atmos_isrc', e.target.value)}
+                                  placeholder="Dolby Atmos ISRC" testId={`track-dolby-isrc-${trackIdx}`} />
+                              </div>
+                              <button type="button" onClick={() => {
+                                const isrc = 'US' + 'KAL' + new Date().getFullYear().toString().slice(-2) + Math.floor(10000 + Math.random() * 90000);
+                                updateTrack(volIdx, trackIdx, 'dolby_atmos_isrc', isrc);
+                              }} className="px-3 py-2 text-[10px] font-bold text-[#7C4DFF] border border-[#7C4DFF]/30 rounded-lg hover:bg-[#7C4DFF]/10 transition-colors whitespace-nowrap"
+                                data-testid={`generate-dolby-isrc-${trackIdx}`}>
+                                Generate ISRC
+                              </button>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <InputField value={track.iswc || ''} onChange={e => updateTrack(volIdx, trackIdx, 'iswc', e.target.value)}
+                              placeholder="ISWC" testId={`track-iswc-${trackIdx}`} />
+                            <div>
+                              <select value={track.audio_language || 'English'} onChange={e => updateTrack(volIdx, trackIdx, 'audio_language', e.target.value)}
+                                className="w-full bg-[#0a0a14] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#7C4DFF]"
+                                data-testid={`track-language-${trackIdx}`}>
+                                {['English','Spanish','French','Portuguese','German','Italian','Japanese','Korean','Chinese','Hindi','Arabic','Swahili','Yoruba','Igbo','Zulu','Dutch','Swedish','Russian','Turkish','Polish','Instrumental'].map(lang => (
+                                  <option key={lang} value={lang}>{lang}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <InputField value={track.production || ''} onChange={e => updateTrack(volIdx, trackIdx, 'production', e.target.value)}
+                              placeholder="Production" testId={`track-production-${trackIdx}`} />
+                            <InputField value={track.publisher || ''} onChange={e => updateTrack(volIdx, trackIdx, 'publisher', e.target.value)}
+                              placeholder="Publisher" testId={`track-publisher-${trackIdx}`} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Preview Start Time *</label>
+                              <input type="text" value={track.preview_start || '00:30'} onChange={e => updateTrack(volIdx, trackIdx, 'preview_start', e.target.value)}
+                                placeholder="00:30" className="w-full bg-[#0a0a14] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#7C4DFF]"
+                                data-testid={`track-preview-start-${trackIdx}`} />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Preview End Time</label>
+                              <input type="text" value={track.preview_end || '00:00'} onChange={e => updateTrack(volIdx, trackIdx, 'preview_end', e.target.value)}
+                                placeholder="00:00" className="w-full bg-[#0a0a14] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#7C4DFF]"
+                                data-testid={`track-preview-end-${trackIdx}`} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* === ARTISTS === */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-[#FFD700] uppercase tracking-wider">Artists *</h4>
+                          <p className="text-[11px] text-gray-500">Enter the name of the main artists</p>
+                          {(track.artists || []).map((art, artIdx) => (
+                            <div key={artIdx} className="flex items-center gap-2">
+                              <select value={art.role} onChange={e => {
+                                const updated = [...(track.artists || [])];
+                                updated[artIdx] = { ...updated[artIdx], role: e.target.value };
+                                updateTrack(volIdx, trackIdx, 'artists', updated);
+                              }} className="bg-[#0a0a14] border border-white/10 rounded-lg px-3 py-2 text-xs text-white w-32"
+                                data-testid={`track-artist-role-${trackIdx}-${artIdx}`}>
+                                <option value="Main Artist">Main Artist</option>
+                                <option value="Featured">Featured</option>
+                                <option value="Remixer">Remixer</option>
+                              </select>
+                              <input value={art.name} onChange={e => {
+                                const updated = [...(track.artists || [])];
+                                updated[artIdx] = { ...updated[artIdx], name: e.target.value };
+                                updateTrack(volIdx, trackIdx, 'artists', updated);
+                              }} placeholder="Name"
+                                className="flex-1 bg-[#0a0a14] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C4DFF]"
+                                data-testid={`track-artist-name-${trackIdx}-${artIdx}`} />
+                              <button type="button" onClick={() => {
+                                const updated = [...(track.artists || []), { role: 'Featured', name: '' }];
+                                updateTrack(volIdx, trackIdx, 'artists', updated);
+                              }} className="p-2 text-[#7C4DFF] hover:bg-[#7C4DFF]/10 rounded-lg"><Plus className="w-4 h-4" /></button>
+                              {(track.artists || []).length > 1 && (
+                                <button type="button" onClick={() => {
+                                  const updated = (track.artists || []).filter((_, i) => i !== artIdx);
+                                  updateTrack(volIdx, trackIdx, 'artists', updated);
+                                }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"><Trash className="w-4 h-4" /></button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* === MAIN CONTRIBUTORS === */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-[#00BCD4] uppercase tracking-wider">Main Contributors *</h4>
+                          <p className="text-[11px] text-gray-500">Enter the name of the main contributors</p>
+                          {(track.main_contributors || []).map((mc, mcIdx) => (
+                            <div key={mcIdx} className="flex items-center gap-2">
+                              <select value={mc.role} onChange={e => {
+                                const updated = [...(track.main_contributors || [])];
+                                updated[mcIdx] = { ...updated[mcIdx], role: e.target.value };
+                                updateTrack(volIdx, trackIdx, 'main_contributors', updated);
+                              }} className="bg-[#0a0a14] border border-white/10 rounded-lg px-3 py-2 text-xs text-white w-32"
+                                data-testid={`track-mc-role-${trackIdx}-${mcIdx}`}>
+                                <option value="Composer">Composer</option>
+                                <option value="Lyricist">Lyricist</option>
+                                <option value="Arranger">Arranger</option>
+                              </select>
+                              <input value={mc.name} onChange={e => {
+                                const updated = [...(track.main_contributors || [])];
+                                updated[mcIdx] = { ...updated[mcIdx], name: e.target.value };
+                                updateTrack(volIdx, trackIdx, 'main_contributors', updated);
+                              }} placeholder="Name"
+                                className="flex-1 bg-[#0a0a14] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C4DFF]"
+                                data-testid={`track-mc-name-${trackIdx}-${mcIdx}`} />
+                              <button type="button" onClick={() => {
+                                const updated = [...(track.main_contributors || []), { role: 'Composer', name: '' }];
+                                updateTrack(volIdx, trackIdx, 'main_contributors', updated);
+                              }} className="p-2 text-[#7C4DFF] hover:bg-[#7C4DFF]/10 rounded-lg"><Plus className="w-4 h-4" /></button>
+                              {(track.main_contributors || []).length > 1 && (
+                                <button type="button" onClick={() => {
+                                  const updated = (track.main_contributors || []).filter((_, i) => i !== mcIdx);
+                                  updateTrack(volIdx, trackIdx, 'main_contributors', updated);
+                                }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"><Trash className="w-4 h-4" /></button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* === CONTRIBUTORS === */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                            Contributors <Info className="w-3 h-3 text-gray-500" />
+                          </h4>
+                          <p className="text-[11px] text-gray-500">Add contributor roles and fill in their names</p>
+                          {(track.contributors || []).map((ct, ctIdx) => (
+                            <div key={ctIdx} className="flex items-center gap-2">
+                              <select value={ct.role} onChange={e => {
+                                const updated = [...(track.contributors || [])];
+                                updated[ctIdx] = { ...updated[ctIdx], role: e.target.value };
+                                updateTrack(volIdx, trackIdx, 'contributors', updated);
+                              }} className="bg-[#0a0a14] border border-white/10 rounded-lg px-3 py-2 text-xs text-white w-32">
+                                <option value="Producer">Producer</option>
+                                <option value="Mixer">Mixer</option>
+                                <option value="Mastering Engineer">Mastering</option>
+                                <option value="Recording Engineer">Recording</option>
+                                <option value="Performer">Performer</option>
+                              </select>
+                              <input value={ct.name} onChange={e => {
+                                const updated = [...(track.contributors || [])];
+                                updated[ctIdx] = { ...updated[ctIdx], name: e.target.value };
+                                updateTrack(volIdx, trackIdx, 'contributors', updated);
+                              }} placeholder="Name"
+                                className="flex-1 bg-[#0a0a14] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C4DFF]" />
+                              <button type="button" onClick={() => {
+                                const updated = (track.contributors || []).filter((_, i) => i !== ctIdx);
+                                updateTrack(volIdx, trackIdx, 'contributors', updated);
+                              }} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg"><Trash className="w-4 h-4" /></button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => {
+                            const updated = [...(track.contributors || []), { role: 'Producer', name: '' }];
+                            updateTrack(volIdx, trackIdx, 'contributors', updated);
+                          }} className="flex items-center gap-2 text-[#7C4DFF] text-xs font-semibold hover:text-[#E040FB] transition-colors"
+                            data-testid={`add-contributor-${trackIdx}`}>
+                            <Plus className="w-4 h-4" /> Add New Contributor
+                          </button>
                         </div>
                       </div>
                     ))}
