@@ -157,6 +157,7 @@ const LandingPage = () => {
         @keyframes colorCycle { 0%{color:#7C4DFF} 33%{color:#E040FB} 66%{color:#FF4081} 100%{color:#7C4DFF} }
         @keyframes taglineCycle { 0%{color:#FF4444} 50%{color:#FFD700} 100%{color:#FF4444} }
         @keyframes btnGradient { 0%{background:#7C4DFF} 33%{background:#E040FB} 66%{background:#FF4081} 100%{background:#7C4DFF} }
+        @keyframes outlineCycle { 0%{border-color:#7C4DFF} 33%{border-color:#E040FB} 66%{border-color:#FF4081} 100%{border-color:#7C4DFF} }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes floatUp { 0%{opacity:0;transform:translateY(40px)} 100%{opacity:1;transform:translateY(0)} }
         .animate-color-cycle { animation: colorCycle 6s ease-in-out infinite; }
@@ -187,7 +188,7 @@ const LandingPage = () => {
                   DISTRIBUTE MY MUSIC ONLINE <ArrowRight className="w-5 h-5" />
                 </button>
               </Link>
-              <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full animate-btn-gradient text-white font-bold text-sm tracking-[2px] hover:brightness-110 transition-all" data-testid="hero-pricing-btn">
+              <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full border-2 border-[#7C4DFF] text-white font-bold text-sm tracking-[2px] hover:brightness-110 transition-all" style={{ animation: 'outlineCycle 6s ease-in-out infinite' }} data-testid="hero-pricing-btn">
                 VIEW PRICING
               </button>
             </div>
@@ -538,7 +539,7 @@ const LandingPage = () => {
                 <button onClick={() => navigate('/register')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="accelerator-signup-btn">
                   SIGN UP <ArrowRight className="w-5 h-5" />
                 </button>
-                <button onClick={() => navigate('/about')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] hover:brightness-110 transition-all" data-testid="accelerator-report-btn">
+                <button onClick={() => navigate('/about')} className="px-10 py-4 rounded-full border-2 border-[#7C4DFF] text-white text-sm font-bold tracking-[2px] hover:brightness-110 transition-all" style={{ animation: 'outlineCycle 6s ease-in-out infinite' }} data-testid="accelerator-report-btn">
                   READ MORE
                 </button>
               </div>
@@ -668,7 +669,7 @@ const LandingPage = () => {
             <button onClick={() => navigate('/register')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="home-start-free-btn">
               START FREE <ArrowRight className="w-4 h-4" />
             </button>
-            <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] hover:brightness-110 transition-all" data-testid="home-pricing-btn">
+            <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full border-2 border-[#7C4DFF] text-white text-sm font-bold tracking-[2px] hover:brightness-110 transition-all" style={{ animation: 'outlineCycle 6s ease-in-out infinite' }} data-testid="home-pricing-btn">
               ALL PRICING
             </button>
           </div>
