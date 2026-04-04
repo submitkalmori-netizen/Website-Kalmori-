@@ -63,6 +63,7 @@ import AdminContractsPage from './pages/AdminContractsPage';
 import CalendarPage from './pages/CalendarPage';
 import CollabHubPage from './pages/CollabHubPage';
 import MessagesPage from './pages/MessagesPage';
+import RoyaltySplitsPage from './pages/RoyaltySplitsPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -288,6 +289,7 @@ const AppRouter = () => {
       <Route path="/collaborations" element={<ProtectedRoute><CollaborationsPage /></ProtectedRoute>} />
               <Route path="/collab-hub" element={<ProtectedRoute><CollabHubPage /></ProtectedRoute>} />
               <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+              <Route path="/royalty-splits" element={<ProtectedRoute><RoyaltySplitsPage /></ProtectedRoute>} />
       <Route path="/presave-manager" element={<ProtectedRoute><PreSaveManagerPage /></ProtectedRoute>} />
       <Route path="/fan-analytics" element={<ProtectedRoute><FanAnalyticsPage /></ProtectedRoute>} />
       <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />

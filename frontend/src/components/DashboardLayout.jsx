@@ -135,6 +135,7 @@ const DashboardLayout = ({ children }) => {
     { path: '/collaborations', icon: <UsersThree className="w-5 h-5" />, label: 'Collaborations', feat: 'collaborations' },
     { path: '/collab-hub', icon: <Lightning className="w-5 h-5" />, label: 'Collab Hub' },
     { path: '/messages', icon: <ChatCircle className="w-5 h-5" />, label: 'Messages' },
+    { path: '/royalty-splits', icon: <CurrencyDollar className="w-5 h-5" />, label: 'Royalty Splits' },
     { path: '/presave-manager', icon: <Megaphone className="w-5 h-5" />, label: 'Pre-Save', feat: 'presave' },
     { path: '/fan-analytics', icon: <HeartStraight className="w-5 h-5" />, label: 'Fan Analytics', feat: 'fan_analytics' },
     { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, label: 'Leaderboard', feat: 'leaderboard' },

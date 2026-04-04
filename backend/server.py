@@ -684,6 +684,36 @@ async def stripe_webhook(request: Request):
                                         </div></div>""")
                             except Exception as e:
                                 logger.warning(f"Contract email failed: {e}")
+                        # Auto-create royalty split for this beat license
+                        try:
+                            license_type = metadata.get("license_type", "basic_lease")
+                            default_splits = DEFAULT_SPLITS.get(license_type, {"producer": 50, "artist": 50})
+                            beat = await db.beats.find_one({"id": beat_id}, {"_id": 0})
+                            producer_id = beat.get("uploaded_by") or beat.get("user_id") or "admin"
+                            # Find admin/producer user for the beat
+                            admin_users = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).to_list(1)
+                            if producer_id == "admin" and admin_users:
+                                producer_id = admin_users[0]["id"]
+                            split_doc = {
+                                "id": f"split_{uuid.uuid4().hex[:12]}",
+                                "beat_id": beat_id,
+                                "beat_title": beat.get("title", "") if beat else "",
+                                "contract_id": contract_id or "",
+                                "license_type": license_type,
+                                "producer_id": producer_id,
+                                "producer_name": beat.get("artist_name", "Producer") if beat else "Producer",
+                                "artist_id": user_id,
+                                "artist_name": user.get("artist_name") or user.get("name", ""),
+                                "producer_split": default_splits["producer"],
+                                "artist_split": default_splits["artist"],
+                                "status": "active",
+                                "created_at": now,
+                                "updated_at": now,
+                            }
+                            await db.royalty_splits.insert_one(split_doc)
+                            logger.info(f"Royalty split created: {split_doc['id']} ({default_splits['producer']}/{default_splits['artist']})")
+                        except Exception as e:
+                            logger.warning(f"Royalty split creation failed: {e}")
             # Handle subscriptions
             elif purchase_type == "subscription":
                 plan = metadata.get("plan")
@@ -2805,6 +2835,159 @@ async def send_receipt(request: Request):
     except Exception as e:
         logger.warning(f"Receipt email failed: {e}")
         return {"message": "Receipt saved (email delivery pending)", "receipt_id": receipt_id}
+
+# ============= PRODUCER ROYALTY SPLITS =============
+
+DEFAULT_SPLITS = {
+    "basic_lease": {"producer": 50, "artist": 50},
+    "premium_lease": {"producer": 40, "artist": 60},
+    "unlimited_lease": {"producer": 30, "artist": 70},
+    "exclusive": {"producer": 0, "artist": 100},
+}
+
+@api_router.get("/royalty-splits")
+async def get_royalty_splits(request: Request):
+    """Get all active royalty splits for the current user (as producer or artist)"""
+    user = await get_current_user(request)
+    uid = user["id"]
+    # Find splits where user is producer or artist
+    splits = await db.royalty_splits.find(
+        {"$or": [{"producer_id": uid}, {"artist_id": uid}]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    # Calculate earnings for each split
+    for s in splits:
+        earnings = await db.split_earnings.find(
+            {"split_id": s["id"]}, {"_id": 0}
+        ).sort("period", -1).to_list(12)
+        s["earnings_history"] = earnings
+        s["total_earned"] = round(sum(e.get("amount", 0) for e in earnings if e.get("recipient_id") == uid), 2)
+        s["is_producer"] = s["producer_id"] == uid
+    return {"splits": splits}
+
+@api_router.get("/royalty-splits/summary")
+async def get_splits_summary(request: Request):
+    """Dashboard summary of royalty split earnings"""
+    user = await get_current_user(request)
+    uid = user["id"]
+    splits = await db.royalty_splits.find(
+        {"$or": [{"producer_id": uid}, {"artist_id": uid}]}, {"_id": 0}
+    ).to_list(100)
+    total_as_producer = 0.0
+    total_as_artist = 0.0
+    active_splits = 0
+    for s in splits:
+        if s.get("status") == "active":
+            active_splits += 1
+        all_earnings = await db.split_earnings.find({"split_id": s["id"], "recipient_id": uid}, {"_id": 0}).to_list(100)
+        earned = sum(e.get("amount", 0) for e in all_earnings)
+        if s["producer_id"] == uid:
+            total_as_producer += earned
+        else:
+            total_as_artist += earned
+    return {
+        "active_splits": active_splits,
+        "total_as_producer": round(total_as_producer, 2),
+        "total_as_artist": round(total_as_artist, 2),
+        "total_earned": round(total_as_producer + total_as_artist, 2),
+    }
+
+@api_router.post("/royalty-splits/calculate")
+async def calculate_and_distribute(request: Request):
+    """Admin: Calculate and distribute royalty splits for all active beat licenses"""
+    await require_admin(request)
+    now = datetime.now(timezone.utc)
+    period = now.strftime("%Y-%m")
+    active_splits = await db.royalty_splits.find({"status": "active"}, {"_id": 0}).to_list(500)
+    distributions = []
+    for split in active_splits:
+        # Get streaming revenue for the beat's releases in this period
+        beat_id = split.get("beat_id")
+        artist_id = split.get("artist_id")
+        if not beat_id or not artist_id:
+            continue
+        # Find stream events for the artist that use this beat
+        month_prefix = period
+        pipeline = [
+            {"$match": {"artist_id": artist_id, "timestamp": {"$regex": f"^{month_prefix}"}}},
+            {"$group": {"_id": None, "streams": {"$sum": 1}, "revenue": {"$sum": "$revenue"}}}
+        ]
+        result = await db.stream_events.aggregate(pipeline).to_list(1)
+        if not result:
+            continue
+        total_revenue = result[0].get("revenue", 0)
+        total_streams = result[0].get("streams", 0)
+        if total_revenue <= 0:
+            continue
+        # Calculate splits
+        producer_pct = split.get("producer_split", 50)
+        artist_pct = split.get("artist_split", 50)
+        producer_amount = round(total_revenue * producer_pct / 100, 2)
+        artist_amount = round(total_revenue * artist_pct / 100, 2)
+        # Check if already distributed for this period
+        existing = await db.split_earnings.find_one({"split_id": split["id"], "period": period})
+        if existing:
+            continue
+        # Create earnings records for both parties
+        for recipient_id, amount, role in [
+            (split["producer_id"], producer_amount, "producer"),
+            (split["artist_id"], artist_amount, "artist"),
+        ]:
+            earning = {
+                "id": f"se_{uuid.uuid4().hex[:12]}",
+                "split_id": split["id"],
+                "recipient_id": recipient_id,
+                "beat_id": beat_id,
+                "role": role,
+                "period": period,
+                "streams": total_streams,
+                "gross_revenue": total_revenue,
+                "split_percentage": producer_pct if role == "producer" else artist_pct,
+                "amount": amount,
+                "status": "calculated",
+                "created_at": now.isoformat(),
+            }
+            await db.split_earnings.insert_one(earning)
+            earning.pop("_id", None)
+            # Credit wallet
+            await db.wallets.update_one(
+                {"user_id": recipient_id},
+                {"$inc": {"balance": amount, "total_earnings": amount}},
+                upsert=True
+            )
+        distributions.append({
+            "split_id": split["id"], "beat": split.get("beat_title", ""),
+            "period": period, "revenue": total_revenue, "streams": total_streams,
+            "producer_payout": producer_amount, "artist_payout": artist_amount,
+        })
+    return {"period": period, "distributions": distributions, "total_processed": len(distributions)}
+
+@api_router.get("/admin/royalty-splits")
+async def admin_list_splits(request: Request):
+    """Admin: View all royalty splits"""
+    await require_admin(request)
+    splits = await db.royalty_splits.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    for s in splits:
+        earnings = await db.split_earnings.find({"split_id": s["id"]}, {"_id": 0}).to_list(50)
+        s["total_distributed"] = round(sum(e.get("amount", 0) for e in earnings), 2)
+        s["periods_distributed"] = len(set(e.get("period") for e in earnings))
+    return {"splits": splits}
+
+@api_router.put("/admin/royalty-splits/{split_id}")
+async def admin_update_split(split_id: str, request: Request):
+    """Admin: Update a royalty split configuration"""
+    await require_admin(request)
+    body = await request.json()
+    update = {}
+    if "producer_split" in body:
+        update["producer_split"] = body["producer_split"]
+        update["artist_split"] = 100 - body["producer_split"]
+    if "status" in body:
+        update["status"] = body["status"]
+    if update:
+        update["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.royalty_splits.update_one({"id": split_id}, {"$set": update})
+    split = await db.royalty_splits.find_one({"id": split_id}, {"_id": 0})
+    return split
 
 # ============= DSP DATA IMPORT (CSV) =============
 @api_router.post("/analytics/import")
