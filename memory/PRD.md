@@ -4,7 +4,7 @@
 Build a TuneCore clone / high-volume digital content aggregator and B2B e-commerce platform for musicians. Core requirements include Authentication, Subscriptions, Object Storage for high-res files, AI Features, Artist/User management, Release/Track uploads, Distribution store management, Beat Marketplace, and strict Kalmori white-labeling.
 
 ## Architecture
-- **Frontend**: React + Tailwind CSS + Shadcn/UI + Framer Motion
+- **Frontend**: React + Tailwind CSS + Shadcn/UI + Framer Motion + @dnd-kit
 - **Backend**: FastAPI (Python) + MongoDB
 - **Payments**: Stripe + PayPal
 - **Storage**: Emergent Object Storage
@@ -16,7 +16,8 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - **QR**: qrcode (Python)
 
 ## Key Credentials
-- Admin: admin@kalmori.com / MAYAsimpSON37!!
+- Admin: admin@kalmori.com / Admin123!
+- Secondary Admin: submitkalmori@gmail.com / Admin123!
 - All system emails route to submitkalmori@gmail.com
 - Minimum withdrawal threshold: $100
 
@@ -44,12 +45,20 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 21. Producer Royalty Split System
 22. Admin Payout Dashboard (batch processing, CSV export)
 23. Automated Payout Scheduling ($100 threshold)
-24. **Artist Profile Enhancements** (Audio Preview Player, Custom Theme Colors, QR Code Generator) — *Apr 2026*
-25. **Landing Page Overhaul** (12 feature cards + 3 detailed highlights: Beat Marketplace, Collaboration, Artist Profiles) — *Apr 2026*
-26. **Backend Refactoring** (server.py 3962→3500 lines; extracted messages_routes.py, royalty_routes.py, payouts_routes.py) — *Apr 2026*
+24. Artist Profile Enhancements (Audio Preview Player, Custom Theme Colors, QR Code Generator)
+25. Landing Page Overhaul (12 feature cards + 3 detailed highlights)
+26. Backend Refactoring (server.py 3962→3500 lines; extracted messages, royalty, payouts routes)
+27. **Admin Page Builder (Elementor-style)** — Drag-and-drop visual editor with 12 block types, inline text editing, style customization, save/publish workflow — *Apr 2026*
+
+## Admin Page Builder Details
+- **Route**: `/admin/page-builder/:slug` (admin only)
+- **Block Types**: Hero Banner, Text Block, Image, Feature Grid, CTA, Testimonials, Stats Row, Spacer, Two Columns, Pricing, Logo Bar, Video Embed
+- **Features**: Drag-and-drop reordering (DnD Kit), inline contentEditable text editing, style panel (background color, text color, accent color, padding, alignment, columns), save draft / publish / unpublish
+- **Flow**: Admin builds page → saves draft → publishes → landing page dynamically renders custom layout. Unpublishing reverts to default.
 
 ## Backend Route Files
 - `server.py` — Auth, Releases, Tracks, Distribution, Analytics, Goals, Wallet, Subscriptions, Purchases, Calendar, Social, Pre-Save, Notifications, Artist Profile
+- `routes/page_builder_routes.py` — Page Builder CRUD + publish
 - `routes/messages_routes.py` — In-App Messaging / Chat
 - `routes/royalty_routes.py` — Producer Royalty Splits
 - `routes/payouts_routes.py` — Admin Payout Dashboard
@@ -63,7 +72,7 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - `routes/paypal_routes.py` — PayPal integration
 
 ## DB Collections
-users, releases, tracks, stream_events, artist_profiles, beats, contracts, conversations, messages, typing_status, royalty_splits, split_earnings, wallets, withdrawals, payout_settings, goals, notifications, notification_preferences, presave_campaigns, collaboration_posts, collab_invites, saved_strategies, digest_log
+users, releases, tracks, stream_events, artist_profiles, beats, contracts, conversations, messages, typing_status, royalty_splits, split_earnings, wallets, withdrawals, payout_settings, goals, notifications, notification_preferences, presave_campaigns, collaboration_posts, collab_invites, saved_strategies, digest_log, page_layouts
 
 ## Remaining / Future Tasks
 - P1: Real DSP API OAuth (Spotify/Apple Music credentials needed)
