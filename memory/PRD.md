@@ -49,11 +49,18 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - 4-tab Release Wizard, 150+ platforms, Beat catalog, Wallet
 - Artist Profile Public Page, Pre-Save Campaigns, Collaborations
 
+### UI/UX Dark Theme (Apr 2026)
+- Dark background with animated electric blue (#0095FF) to purple (#7468F8) gradients
+- CSS keyframe shimmer animations on Landing, Login, Register pages
+- Kalmori Artist Agreement page (Artist + Producer/Label tabs)
+- RegisterPage 2-step flow with agreement link in terms checkbox
+- PublicLayout header icons with animated color pulse
+
 ## All Pages & Routes
-`/` `/login` `/register` `/select-role` `/verify-email` `/pricing` `/label` `/instrumentals` `/dashboard` `/releases` `/releases/new` `/analytics` `/wallet` `/purchases` `/collaborations` `/presave-manager` `/fan-analytics` `/revenue` `/leaderboard` `/goals` `/settings` `/presave/:id` `/artist/:slug` `/spotify-canvas` `/content-id` `/admin` `/admin/submissions` `/admin/users` `/admin/users/:userId` `/admin/beats` `/admin/royalty-import` `/admin/campaigns` `/admin/leads`
+`/` `/login` `/register` `/select-role` `/verify-email` `/pricing` `/label` `/instrumentals` `/dashboard` `/releases` `/releases/new` `/analytics` `/wallet` `/purchases` `/collaborations` `/presave-manager` `/fan-analytics` `/revenue` `/leaderboard` `/goals` `/settings` `/presave/:id` `/artist/:slug` `/spotify-canvas` `/content-id` `/admin` `/admin/submissions` `/admin/users` `/admin/users/:userId` `/admin/beats` `/admin/royalty-import` `/admin/campaigns` `/admin/leads` `/agreement`
 
 ## Remaining Backlog
 - P1: Real Spotify OAuth with API credentials (user has developer account)
 - P2: Apple Music / YouTube Music API connections
 - P2: Replace simulated DSP data with real API feeds
-- NOTE: Email delivery to non-owner addresses requires custom domain in Resend
+- P3: Custom Resend domain for full email delivery (test domain only currently)
