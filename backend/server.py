@@ -3356,24 +3356,65 @@ async def startup():
         except Exception as e:
             logger.warning(f"Voice tag generation failed: {e}")
 
-    # Seed admin
+    # Seed admin — ensures the configured admin exists on every deployment
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@tunedrop.com")
     admin_password = os.environ.get("ADMIN_PASSWORD", "Admin123!")
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
-        admin_id = f"user_{uuid.uuid4().hex[:12]}"
-        await db.users.insert_one({
-            "id": admin_id, "email": admin_email, "name": "Admin",
-            "artist_name": "Kalmori Admin", "password_hash": hash_password(admin_password),
-            "role": "admin", "plan": "pro", "avatar_url": None,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
-        await db.wallets.insert_one({
-            "user_id": admin_id, "balance": 0.0, "pending_balance": 0.0,
-            "currency": "USD", "total_earnings": 0.0, "total_withdrawn": 0.0,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
-        logger.info(f"Admin user created: {admin_email}")
+        # Check if there's a stale default admin to migrate
+        default_admin = await db.users.find_one({"email": "admin@tunedrop.com"})
+        if default_admin and admin_email != "admin@tunedrop.com":
+            await db.users.update_one({"email": "admin@tunedrop.com"}, {"$set": {
+                "email": admin_email, "password_hash": hash_password(admin_password),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }})
+            logger.info(f"Migrated default admin to {admin_email}")
+        else:
+            admin_id = f"user_{uuid.uuid4().hex[:12]}"
+            await db.users.insert_one({
+                "id": admin_id, "email": admin_email, "name": "Admin",
+                "artist_name": "Kalmori Admin", "password_hash": hash_password(admin_password),
+                "role": "admin", "plan": "pro", "avatar_url": None,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            await db.wallets.insert_one({
+                "user_id": admin_id, "balance": 0.0, "pending_balance": 0.0,
+                "currency": "USD", "total_earnings": 0.0, "total_withdrawn": 0.0,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            logger.info(f"Admin user created: {admin_email}")
+    else:
+        # Ensure existing admin has correct password (in case of env change)
+        if not verify_password(admin_password, existing.get("password_hash", "")):
+            await db.users.update_one({"email": admin_email}, {"$set": {
+                "password_hash": hash_password(admin_password),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }})
+            logger.info(f"Admin password synced for {admin_email}")
+    # Also ensure the secondary admin (submitkalmori@gmail.com) exists
+    secondary_admin_email = "submitkalmori@gmail.com"
+    if admin_email != secondary_admin_email:
+        sec_existing = await db.users.find_one({"email": secondary_admin_email})
+        if not sec_existing:
+            sec_id = f"user_{uuid.uuid4().hex[:12]}"
+            await db.users.insert_one({
+                "id": sec_id, "email": secondary_admin_email, "name": "Admin",
+                "artist_name": "Kalmori Admin", "password_hash": hash_password(admin_password),
+                "role": "admin", "plan": "pro", "avatar_url": None,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            await db.wallets.insert_one({
+                "user_id": sec_id, "balance": 0.0, "pending_balance": 0.0,
+                "currency": "USD", "total_earnings": 0.0, "total_withdrawn": 0.0,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            logger.info(f"Secondary admin created: {secondary_admin_email}")
+        elif not verify_password(admin_password, sec_existing.get("password_hash", "")):
+            await db.users.update_one({"email": secondary_admin_email}, {"$set": {
+                "password_hash": hash_password(admin_password),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }})
+            logger.info(f"Secondary admin password synced")
 
     # Seed demo beats
     if await db.beats.count_documents({}) == 0:
