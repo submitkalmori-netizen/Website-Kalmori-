@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../App';
-import { GoogleLogo, Eye, EyeSlash, CaretDown, Check, CheckCircle, WarningCircle, MusicNotes, ArrowRight, Plus } from '@phosphor-icons/react';
+import { GoogleLogo, Eye, EyeSlash, CaretDown, Check, CheckCircle, WarningCircle, MusicNotes, ArrowRight, Plus, Gift } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import ReCAPTCHA from 'react-google-recaptcha';
 
@@ -32,6 +32,8 @@ const COUNTRIES = [
 
 const RegisterPage = () => {
   const [step, setStep] = useState(1);
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get('ref') || '';
 
   // Step 1 fields
   const [email, setEmail] = useState('');
@@ -108,6 +110,17 @@ const RegisterPage = () => {
         phone,
         recaptcha_token: recaptchaToken,
       });
+      // Complete referral if code was used
+      if (refCode) {
+        try {
+          const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+          await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/referral/complete`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: refCode }),
+          });
+        } catch (e) { /* Referral completion is best-effort */ }
+      }
       toast.success('Account created!');
       navigate('/select-role');
     } catch (err) {
@@ -151,6 +164,15 @@ const RegisterPage = () => {
       `}</style>
 
       <div className="relative z-10 w-full max-w-lg mx-auto px-4 py-10">
+        {/* Referral Banner */}
+        {refCode && (
+          <div className="mb-4 bg-[#7C4DFF]/20 border border-[#7C4DFF]/40 rounded-xl p-3 text-center" data-testid="referral-banner">
+            <p className="text-white text-sm font-medium">
+              <Gift className="w-4 h-4 inline mr-1 text-[#E040FB]" />
+              You were referred! Sign up to get a <strong className="text-[#E040FB]">free month of Rise</strong>
+            </p>
+          </div>
+        )}
         {/* Step 1: Email + Password */}
         {step === 1 && (
           <div className="text-center">

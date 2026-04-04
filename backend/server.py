@@ -1699,6 +1699,142 @@ async def redeem_promo_code(request: Request):
     })
     return {"message": f"Promo code {code} applied successfully"}
 
+# ============= REFERRAL PROGRAM =============
+
+@api_router.get("/referral/my-link")
+async def get_referral_link(request: Request):
+    """Get or generate the current user's referral code and link"""
+    user = await get_current_user(request)
+    existing = await db.referrals.find_one({"user_id": user["id"]}, {"_id": 0})
+    if existing:
+        return existing
+    ref_code = f"KAL{user['id'][-6:].upper()}"
+    doc = {
+        "id": f"ref_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"],
+        "referral_code": ref_code,
+        "total_referrals": 0,
+        "successful_referrals": 0,
+        "rewards_earned": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.referrals.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.get("/referral/stats")
+async def get_referral_stats(request: Request):
+    """Get referral stats for current user"""
+    user = await get_current_user(request)
+    ref = await db.referrals.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not ref:
+        return {"total_referrals": 0, "successful_referrals": 0, "rewards_earned": 0, "referred_users": []}
+    referred = await db.referral_signups.find(
+        {"referrer_id": user["id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return {**ref, "referred_users": referred}
+
+@api_router.post("/referral/validate")
+async def validate_referral_code(request: Request):
+    """Validate a referral code during registration"""
+    body = await request.json()
+    code = body.get("code", "").strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="No referral code provided")
+    ref = await db.referrals.find_one({"referral_code": code}, {"_id": 0})
+    if not ref:
+        raise HTTPException(status_code=404, detail="Invalid referral code")
+    referrer = await db.users.find_one({"id": ref["user_id"]}, {"_id": 0, "artist_name": 1, "name": 1})
+    return {
+        "valid": True,
+        "code": code,
+        "referrer_name": referrer.get("artist_name") or referrer.get("name", "A Kalmori user"),
+        "reward": "Both you and the referrer get a free month of Rise!",
+    }
+
+@api_router.post("/referral/complete")
+async def complete_referral(request: Request):
+    """Called after a referred user signs up — awards both parties"""
+    user = await get_current_user(request)
+    body = await request.json()
+    code = body.get("code", "").strip().upper()
+    if not code:
+        return {"message": "No referral code"}
+    # Check not self-referral
+    ref = await db.referrals.find_one({"referral_code": code})
+    if not ref or ref["user_id"] == user["id"]:
+        return {"message": "Invalid referral"}
+    # Check not already referred
+    existing = await db.referral_signups.find_one({"referred_user_id": user["id"]})
+    if existing:
+        return {"message": "Already used a referral"}
+    # Record the referral
+    await db.referral_signups.insert_one({
+        "id": f"refsignup_{uuid.uuid4().hex[:12]}",
+        "referrer_id": ref["user_id"],
+        "referred_user_id": user["id"],
+        "referred_name": user.get("artist_name") or user.get("name", ""),
+        "referred_email": user.get("email", ""),
+        "referral_code": code,
+        "status": "completed",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    # Update referrer stats
+    await db.referrals.update_one({"referral_code": code}, {
+        "$inc": {"total_referrals": 1, "successful_referrals": 1, "rewards_earned": 1}
+    })
+    # Give referrer a free month (upgrade to Rise if on Free, or add credit)
+    referrer = await db.users.find_one({"id": ref["user_id"]})
+    if referrer and referrer.get("plan") == "free":
+        await db.users.update_one({"id": ref["user_id"]}, {"$set": {"plan": "rise"}})
+    # Notify referrer
+    await db.notifications.insert_one({
+        "id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": ref["user_id"],
+        "type": "referral_reward",
+        "message": f"Your referral {user.get('artist_name', user.get('name', 'Someone'))} just signed up! You earned a free month of Rise.",
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    # Give the new user Rise for free too
+    if user.get("plan") == "free":
+        await db.users.update_one({"id": user["id"]}, {"$set": {"plan": "rise"}})
+    # Notify the new user
+    await db.notifications.insert_one({
+        "id": f"notif_{uuid.uuid4().hex[:12]}",
+        "user_id": user["id"],
+        "type": "referral_welcome",
+        "message": "Welcome! Your referral code gave you a free month of Rise. Enjoy!",
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"message": "Referral completed! Both you and the referrer earned a free month of Rise."}
+
+@api_router.get("/admin/referral/overview")
+async def admin_referral_overview(request: Request):
+    """Admin overview of the referral program"""
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    total_referrals = await db.referral_signups.count_documents({})
+    total_referrers = await db.referrals.count_documents({"total_referrals": {"$gt": 0}})
+    all_signups = await db.referral_signups.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    top_referrers = await db.referrals.find(
+        {"total_referrals": {"$gt": 0}}, {"_id": 0}
+    ).sort("successful_referrals", -1).to_list(10)
+    # Enrich with user info
+    for ref in top_referrers:
+        u = await db.users.find_one({"id": ref["user_id"]}, {"_id": 0, "artist_name": 1, "email": 1, "name": 1})
+        if u:
+            ref["artist_name"] = u.get("artist_name") or u.get("name", "")
+            ref["email"] = u.get("email", "")
+    return {
+        "total_referrals": total_referrals,
+        "total_referrers": total_referrers,
+        "recent_signups": all_signups[:20],
+        "top_referrers": top_referrers,
+    }
+
 # ============= NOTIFICATIONS =============
 @api_router.get("/notifications")
 async def get_notifications(request: Request):
@@ -2540,7 +2676,7 @@ async def startup():
         admin_id = f"user_{uuid.uuid4().hex[:12]}"
         await db.users.insert_one({
             "id": admin_id, "email": admin_email, "name": "Admin",
-            "artist_name": "TuneDrop Admin", "password_hash": hash_password(admin_password),
+            "artist_name": "Kalmori Admin", "password_hash": hash_password(admin_password),
             "role": "admin", "plan": "pro", "avatar_url": None,
             "created_at": datetime.now(timezone.utc).isoformat()
         })

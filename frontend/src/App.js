@@ -56,6 +56,8 @@ import RoleSelectionPage from './pages/RoleSelectionPage';
 import LabelDashboardPage from './pages/LabelDashboardPage';
 import AdminEmailSettingsPage from './pages/AdminEmailSettingsPage';
 import AdminPromoCodesPage from './pages/AdminPromoCodesPage';
+import ReferralPage from './pages/ReferralPage';
+import AdminReferralsPage from './pages/AdminReferralsPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -284,6 +286,7 @@ const AppRouter = () => {
       <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
       <Route path="/leaderboard" element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
       <Route path="/goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
+              <Route path="/referrals" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
       <Route path="/presave/:campaignId" element={<PreSaveLandingPage />} />
       <Route path="/artist/:slug" element={<ArtistProfilePage />} />
       <Route path="/select-role" element={<RoleSelectionPage />} />
@@ -299,6 +302,7 @@ const AppRouter = () => {
               <Route path="/admin/leads" element={<AdminRoute><AdminLeadsPage /></AdminRoute>} />
               <Route path="/admin/email-settings" element={<AdminRoute><AdminEmailSettingsPage /></AdminRoute>} />
               <Route path="/admin/promo-codes" element={<AdminRoute><AdminPromoCodesPage /></AdminRoute>} />
+              <Route path="/admin/referrals" element={<AdminRoute><AdminReferralsPage /></AdminRoute>} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/agreement" element={<AgreementPage />} />
       <Route path="/pricing" element={<PricingPage />} />
