@@ -880,3 +880,213 @@ async def send_all_lead_reminders(request: Request):
             sent_count += 1
 
     return {"message": f"Sent {sent_count} reminder(s)", "sent_count": sent_count}
+
+
+# ============= EMAIL DOMAIN MANAGEMENT (Admin) =============
+
+class DomainInput(BaseModel):
+    domain: str
+
+@email_router.post("/admin/email/domain")
+async def add_email_domain(data: DomainInput, request: Request):
+    """Add a custom sending domain to Resend"""
+    from server import get_current_user
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    if not resend or not RESEND_API_KEY:
+        raise HTTPException(status_code=500, detail="Resend API not configured")
+
+    domain_name = data.domain.strip().lower()
+    if not domain_name or "." not in domain_name:
+        raise HTTPException(status_code=400, detail="Invalid domain name")
+
+    # Check if domain already exists in our DB
+    existing = await db.email_domains.find_one({"domain": domain_name}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Domain already added. Use verify to check status.")
+
+    try:
+        import asyncio
+        result = await asyncio.to_thread(resend.Domains.create, {"name": domain_name, "region": "us-east-1"})
+        # Resend returns domain object with DNS records
+        domain_data = result if isinstance(result, dict) else result.__dict__ if hasattr(result, '__dict__') else {"id": str(result)}
+
+        # Extract records from response
+        records = []
+        if hasattr(result, 'records') and result.records:
+            for rec in result.records:
+                rec_dict = rec if isinstance(rec, dict) else rec.__dict__ if hasattr(rec, '__dict__') else {}
+                records.append({
+                    "record": rec_dict.get("record", rec_dict.get("type", "")),
+                    "name": rec_dict.get("name", ""),
+                    "type": rec_dict.get("type", ""),
+                    "ttl": rec_dict.get("ttl", "Auto"),
+                    "value": rec_dict.get("value", ""),
+                    "status": rec_dict.get("status", "not_started"),
+                    "priority": rec_dict.get("priority", None),
+                })
+
+        domain_id = domain_data.get("id", "") if isinstance(domain_data, dict) else getattr(result, "id", "")
+        status = domain_data.get("status", "pending") if isinstance(domain_data, dict) else getattr(result, "status", "pending")
+
+        doc = {
+            "id": f"domain_{uuid.uuid4().hex[:12]}",
+            "resend_domain_id": str(domain_id),
+            "domain": domain_name,
+            "status": status,
+            "records": records,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "activated": False,
+        }
+        await db.email_domains.insert_one(doc)
+        doc.pop("_id", None)
+        return doc
+
+    except Exception as e:
+        logger.error(f"Failed to add domain to Resend: {e}")
+        raise HTTPException(status_code=500, detail=f"Resend API error: {str(e)}")
+
+
+@email_router.get("/admin/email/domain")
+async def get_email_domains(request: Request):
+    """Get all configured email domains"""
+    from server import get_current_user
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    domains = await db.email_domains.find({}, {"_id": 0}).sort("created_at", -1).to_list(20)
+    current_sender = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
+    return {"domains": domains, "current_sender": current_sender}
+
+
+@email_router.post("/admin/email/domain/{domain_id}/verify")
+async def verify_email_domain(domain_id: str, request: Request):
+    """Trigger domain verification in Resend"""
+    from server import get_current_user
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    if not resend or not RESEND_API_KEY:
+        raise HTTPException(status_code=500, detail="Resend API not configured")
+
+    domain_doc = await db.email_domains.find_one({"id": domain_id}, {"_id": 0})
+    if not domain_doc:
+        raise HTTPException(status_code=404, detail="Domain not found")
+
+    try:
+        import asyncio
+        result = await asyncio.to_thread(resend.Domains.verify, domain_doc["resend_domain_id"])
+
+        # Also get latest domain info
+        domain_info = await asyncio.to_thread(resend.Domains.get, domain_doc["resend_domain_id"])
+        info_dict = domain_info if isinstance(domain_info, dict) else domain_info.__dict__ if hasattr(domain_info, '__dict__') else {}
+
+        new_status = info_dict.get("status", domain_doc.get("status", "pending")) if isinstance(info_dict, dict) else getattr(domain_info, "status", "pending")
+
+        # Update records from latest info
+        records = []
+        raw_records = info_dict.get("records", []) if isinstance(info_dict, dict) else getattr(domain_info, "records", [])
+        for rec in raw_records:
+            rec_dict = rec if isinstance(rec, dict) else rec.__dict__ if hasattr(rec, '__dict__') else {}
+            records.append({
+                "record": rec_dict.get("record", rec_dict.get("type", "")),
+                "name": rec_dict.get("name", ""),
+                "type": rec_dict.get("type", ""),
+                "ttl": rec_dict.get("ttl", "Auto"),
+                "value": rec_dict.get("value", ""),
+                "status": rec_dict.get("status", "not_started"),
+                "priority": rec_dict.get("priority", None),
+            })
+
+        await db.email_domains.update_one({"id": domain_id}, {"$set": {
+            "status": new_status,
+            "records": records if records else domain_doc.get("records", []),
+            "last_checked": datetime.now(timezone.utc).isoformat(),
+        }})
+
+        updated = await db.email_domains.find_one({"id": domain_id}, {"_id": 0})
+        return updated
+
+    except Exception as e:
+        logger.error(f"Domain verification failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Verification error: {str(e)}")
+
+
+@email_router.post("/admin/email/domain/{domain_id}/activate")
+async def activate_email_domain(domain_id: str, request: Request):
+    """Set a verified domain as the active sender domain"""
+    from server import get_current_user
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    domain_doc = await db.email_domains.find_one({"id": domain_id}, {"_id": 0})
+    if not domain_doc:
+        raise HTTPException(status_code=404, detail="Domain not found")
+
+    if domain_doc.get("status") != "verified":
+        raise HTTPException(status_code=400, detail="Domain must be verified before activation. Add the DNS records and click Verify.")
+
+    new_sender = f"noreply@{domain_doc['domain']}"
+
+    # Deactivate all other domains
+    await db.email_domains.update_many({}, {"$set": {"activated": False}})
+    await db.email_domains.update_one({"id": domain_id}, {"$set": {"activated": True}})
+
+    # Update env var in memory and .env file
+    global SENDER_EMAIL
+    SENDER_EMAIL = new_sender
+    os.environ["SENDER_EMAIL"] = new_sender
+
+    # Update .env file
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+    try:
+        with open(env_path, "r") as f:
+            lines = f.readlines()
+        new_lines = []
+        found = False
+        for line in lines:
+            if line.startswith("SENDER_EMAIL="):
+                new_lines.append(f"SENDER_EMAIL={new_sender}\n")
+                found = True
+            else:
+                new_lines.append(line)
+        if not found:
+            new_lines.append(f"SENDER_EMAIL={new_sender}\n")
+        with open(env_path, "w") as f:
+            f.writelines(new_lines)
+    except Exception as e:
+        logger.error(f"Failed to update .env: {e}")
+
+    return {"message": f"Domain activated! Emails will now be sent from {new_sender}", "sender_email": new_sender}
+
+
+@email_router.delete("/admin/email/domain/{domain_id}")
+async def delete_email_domain(domain_id: str, request: Request):
+    """Remove a domain"""
+    from server import get_current_user
+    user = await get_current_user(request)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    domain_doc = await db.email_domains.find_one({"id": domain_id})
+    if not domain_doc:
+        raise HTTPException(status_code=404, detail="Domain not found")
+
+    # Remove from Resend
+    if resend and RESEND_API_KEY and domain_doc.get("resend_domain_id"):
+        try:
+            import asyncio
+            await asyncio.to_thread(resend.Domains.remove, domain_doc["resend_domain_id"])
+        except Exception as e:
+            logger.warning(f"Failed to remove domain from Resend: {e}")
+
+    # If this was active, revert to default
+    if domain_doc.get("activated"):
+        global SENDER_EMAIL
+        SENDER_EMAIL = "onboarding@resend.dev"
+        os.environ["SENDER_EMAIL"] = "onboarding@resend.dev"
+
+    await db.email_domains.delete_one({"id": domain_id})
+    return {"message": "Domain removed"}

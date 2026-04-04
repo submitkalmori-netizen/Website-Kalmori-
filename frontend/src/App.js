@@ -54,6 +54,7 @@ import GoalsPage from './pages/GoalsPage';
 import ArtistProfilePage from './pages/ArtistProfilePage';
 import RoleSelectionPage from './pages/RoleSelectionPage';
 import LabelDashboardPage from './pages/LabelDashboardPage';
+import AdminEmailSettingsPage from './pages/AdminEmailSettingsPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -295,6 +296,7 @@ const AppRouter = () => {
               <Route path="/admin/royalty-import" element={<AdminRoute><AdminRoyaltyImportPage /></AdminRoute>} />
               <Route path="/admin/campaigns" element={<AdminRoute><AdminCampaignsPage /></AdminRoute>} />
               <Route path="/admin/leads" element={<AdminRoute><AdminLeadsPage /></AdminRoute>} />
+              <Route path="/admin/email-settings" element={<AdminRoute><AdminEmailSettingsPage /></AdminRoute>} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/agreement" element={<AgreementPage />} />
       <Route path="/pricing" element={<PricingPage />} />
