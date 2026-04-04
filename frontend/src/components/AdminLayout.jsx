@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, API } from '../App';
 import { Button } from './ui/button';
-import { House, Users, ClipboardText, ChartBar, Gear, SignOut, List, X, ArrowLeft, ShieldCheck, Bell, MusicNote, FileArrowUp, PaperPlaneTilt, Megaphone, Envelope, Tag, Gift, ChartLineUp, FileText } from '@phosphor-icons/react';
+import { House, Users, ClipboardText, ChartBar, Gear, SignOut, List, X, ArrowLeft, ShieldCheck, Bell, MusicNote, FileArrowUp, PaperPlaneTilt, Megaphone, Envelope, Tag, Gift, ChartLineUp, FileText, Wallet } from '@phosphor-icons/react';
 import axios from 'axios';
 
 const AdminLayout = ({ children }) => {
@@ -37,6 +37,7 @@ const AdminLayout = ({ children }) => {
     { path: '/admin/referrals', icon: <Gift className="w-5 h-5" />, label: 'Referrals' },
     { path: '/admin/analytics-reports', icon: <ChartLineUp className="w-5 h-5" />, label: 'Analytics Reports' },
     { path: '/admin/contracts', icon: <FileText className="w-5 h-5" />, label: 'Contracts' },
+    { path: '/admin/payouts', icon: <Wallet className="w-5 h-5" />, label: 'Payouts' },
   ];
 
   const isActive = (item) => {

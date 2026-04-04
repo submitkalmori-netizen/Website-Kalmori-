@@ -2989,6 +2989,123 @@ async def admin_update_split(split_id: str, request: Request):
     split = await db.royalty_splits.find_one({"id": split_id}, {"_id": 0})
     return split
 
+# ============= ADMIN PAYOUT DASHBOARD =============
+
+@api_router.get("/admin/payouts")
+async def admin_list_payouts(request: Request, status: str = None):
+    """Admin: List all withdrawal requests with user details"""
+    await require_admin(request)
+    query = {} if not status or status == "all" else {"status": status}
+    withdrawals = await db.withdrawals.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    for w in withdrawals:
+        user = await db.users.find_one({"id": w.get("user_id")}, {"_id": 0, "email": 1, "artist_name": 1, "name": 1})
+        w["user_email"] = (user or {}).get("email", "")
+        w["user_name"] = (user or {}).get("artist_name") or (user or {}).get("name", "Unknown")
+    return {"withdrawals": withdrawals}
+
+@api_router.get("/admin/payouts/summary")
+async def admin_payouts_summary(request: Request):
+    """Admin: Payout stats overview"""
+    await require_admin(request)
+    all_wd = await db.withdrawals.find({}, {"_id": 0}).to_list(1000)
+    pending = [w for w in all_wd if w.get("status") == "pending"]
+    processing = [w for w in all_wd if w.get("status") == "processing"]
+    completed = [w for w in all_wd if w.get("status") == "completed"]
+    failed = [w for w in all_wd if w.get("status") == "failed"]
+    # Get total user balances
+    wallets = await db.wallets.find({}, {"_id": 0}).to_list(1000)
+    total_balance = sum(w.get("balance", 0) for w in wallets)
+    return {
+        "pending_count": len(pending),
+        "pending_amount": round(sum(w.get("amount", 0) for w in pending), 2),
+        "processing_count": len(processing),
+        "processing_amount": round(sum(w.get("amount", 0) for w in processing), 2),
+        "completed_count": len(completed),
+        "completed_amount": round(sum(w.get("amount", 0) for w in completed), 2),
+        "failed_count": len(failed),
+        "total_user_balances": round(total_balance, 2),
+    }
+
+@api_router.put("/admin/payouts/{withdrawal_id}")
+async def admin_update_payout(withdrawal_id: str, request: Request):
+    """Admin: Update payout status (pending -> processing -> completed/failed)"""
+    await require_admin(request)
+    body = await request.json()
+    new_status = body.get("status")
+    if new_status not in ["processing", "completed", "failed", "pending"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    wd = await db.withdrawals.find_one({"id": withdrawal_id})
+    if not wd:
+        raise HTTPException(status_code=404, detail="Withdrawal not found")
+    update = {"status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}
+    if body.get("transaction_ref"):
+        update["transaction_ref"] = body["transaction_ref"]
+    if body.get("notes"):
+        update["notes"] = body["notes"]
+    if new_status == "completed":
+        update["paid_at"] = datetime.now(timezone.utc).isoformat()
+        await db.wallets.update_one(
+            {"user_id": wd["user_id"]},
+            {"$inc": {"pending_balance": -wd["amount"], "total_withdrawn": wd["amount"]}}
+        )
+    elif new_status == "failed":
+        await db.wallets.update_one(
+            {"user_id": wd["user_id"]},
+            {"$inc": {"balance": wd["amount"], "pending_balance": -wd["amount"]}}
+        )
+    await db.withdrawals.update_one({"id": withdrawal_id}, {"$set": update})
+    return {"message": f"Payout updated to {new_status}", "id": withdrawal_id}
+
+@api_router.post("/admin/payouts/batch")
+async def admin_batch_process(request: Request):
+    """Admin: Batch update multiple payout statuses"""
+    await require_admin(request)
+    body = await request.json()
+    ids = body.get("withdrawal_ids", [])
+    new_status = body.get("status", "processing")
+    if new_status not in ["processing", "completed", "failed"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    updated = 0
+    for wid in ids:
+        wd = await db.withdrawals.find_one({"id": wid})
+        if not wd:
+            continue
+        update = {"status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}
+        if new_status == "completed":
+            update["paid_at"] = datetime.now(timezone.utc).isoformat()
+            await db.wallets.update_one({"user_id": wd["user_id"]},
+                {"$inc": {"pending_balance": -wd["amount"], "total_withdrawn": wd["amount"]}})
+        elif new_status == "failed":
+            await db.wallets.update_one({"user_id": wd["user_id"]},
+                {"$inc": {"balance": wd["amount"], "pending_balance": -wd["amount"]}})
+        await db.withdrawals.update_one({"id": wid}, {"$set": update})
+        updated += 1
+    return {"message": f"{updated} payouts updated to {new_status}", "updated": updated}
+
+@api_router.get("/admin/payouts/export")
+async def admin_export_payouts(request: Request, status: str = "pending"):
+    """Admin: Export payout report as CSV"""
+    await require_admin(request)
+    query = {} if status == "all" else {"status": status}
+    withdrawals = await db.withdrawals.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    import csv
+    buf = BytesIO()
+    import io
+    text_buf = io.StringIO()
+    writer = csv.writer(text_buf)
+    writer.writerow(["ID", "User", "Email", "Amount (USD)", "Method", "PayPal Email", "Status", "Requested", "Paid At", "Transaction Ref", "Notes"])
+    for w in withdrawals:
+        user = await db.users.find_one({"id": w.get("user_id")}, {"_id": 0, "email": 1, "artist_name": 1})
+        writer.writerow([
+            w.get("id", ""), (user or {}).get("artist_name", ""), (user or {}).get("email", ""),
+            f'{w.get("amount", 0):.2f}', w.get("method", ""), w.get("paypal_email", ""),
+            w.get("status", ""), w.get("created_at", "")[:10], w.get("paid_at", "")[:10] if w.get("paid_at") else "",
+            w.get("transaction_ref", ""), w.get("notes", ""),
+        ])
+    csv_bytes = text_buf.getvalue().encode("utf-8")
+    return StreamingResponse(BytesIO(csv_bytes), media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="Kalmori_Payouts_{status}_{datetime.now(timezone.utc).strftime("%Y%m%d")}.csv"'})
+
 # ============= DSP DATA IMPORT (CSV) =============
 @api_router.post("/analytics/import")
 async def import_streaming_data(request: Request, file: UploadFile = File(...)):

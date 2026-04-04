@@ -60,6 +60,7 @@ import ReferralPage from './pages/ReferralPage';
 import AdminReferralsPage from './pages/AdminReferralsPage';
 import AdminAnalyticsReportsPage from './pages/AdminAnalyticsReportsPage';
 import AdminContractsPage from './pages/AdminContractsPage';
+import AdminPayoutsPage from './pages/AdminPayoutsPage';
 import CalendarPage from './pages/CalendarPage';
 import CollabHubPage from './pages/CollabHubPage';
 import MessagesPage from './pages/MessagesPage';
@@ -315,6 +316,7 @@ const AppRouter = () => {
               <Route path="/admin/referrals" element={<AdminRoute><AdminReferralsPage /></AdminRoute>} />
               <Route path="/admin/analytics-reports" element={<AdminRoute><AdminAnalyticsReportsPage /></AdminRoute>} />
               <Route path="/admin/contracts" element={<AdminRoute><AdminContractsPage /></AdminRoute>} />
+              <Route path="/admin/payouts" element={<AdminRoute><AdminPayoutsPage /></AdminRoute>} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/agreement" element={<AgreementPage />} />
       <Route path="/pricing" element={<PricingPage />} />
