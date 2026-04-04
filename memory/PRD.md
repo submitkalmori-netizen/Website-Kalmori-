@@ -9,17 +9,17 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - **Payments**: Stripe + PayPal
 - **Storage**: Emergent Object Storage
 - **AI**: Emergent LLM Key (OpenAI) for strategies, TTS for voice tags
-- **Email**: Resend API (support@kalmori.org → submitkalmori@gmail.com)
+- **Email**: Resend API (support@kalmori.org)
 - **Auth**: JWT + Google OAuth (Emergent)
 - **PDF**: reportlab
 - **Audio**: pydub + ffmpeg
 - **QR**: qrcode (Python)
+- **DSP**: Spotify Web API (spotipy)
 
 ## Key Credentials
 - Admin: admin@kalmori.com / Admin123!
 - Secondary Admin: submitkalmori@gmail.com / Admin123!
-- All system emails route to submitkalmori@gmail.com
-- Minimum withdrawal threshold: $100
+- Spotify Client ID: f3d8dbd3c4f441efa5ca51edd0d455b1
 
 ## Implemented Features (All Tested & Verified)
 1. Auth (JWT + Google OAuth + reCAPTCHA + Password Reset)
@@ -47,18 +47,28 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 23. Automated Payout Scheduling ($100 threshold)
 24. Artist Profile Enhancements (Audio Preview Player, Custom Theme Colors, QR Code Generator)
 25. Landing Page Overhaul (12 feature cards + 3 detailed highlights)
-26. Backend Refactoring (server.py 3962→3500 lines; extracted messages, royalty, payouts routes)
-27. **Admin Page Builder (Elementor-style)** — Drag-and-drop visual editor with 12 block types, inline text editing, style customization, save/publish workflow — *Apr 2026*
+26. Backend Refactoring (server.py split into route modules)
+27. **Admin Page Builder V1** — Drag-and-drop visual editor with 12 block types
+28. **Admin Page Builder V2 Enhancements** — Custom CSS injection, Image uploads, Block duplication, Multi-page selector (Landing/About/Pricing) — *Apr 2026*
+29. **Spotify DSP OAuth Integration** — Real Spotify Web API connection with artist data, top tracks, albums, discography, and related artists — *Apr 2026*
 
 ## Admin Page Builder Details
 - **Route**: `/admin/page-builder/:slug` (admin only)
 - **Block Types**: Hero Banner, Text Block, Image, Feature Grid, CTA, Testimonials, Stats Row, Spacer, Two Columns, Pricing, Logo Bar, Video Embed
-- **Features**: Drag-and-drop reordering (DnD Kit), inline contentEditable text editing, style panel (background color, text color, accent color, padding, alignment, columns), save draft / publish / unpublish
-- **Flow**: Admin builds page → saves draft → publishes → landing page dynamically renders custom layout. Unpublishing reverts to default.
+- **V2 Features**: Custom CSS injection per block, Image upload via Object Storage, Block duplication, Page Selector (Landing/About/Pricing)
+- **Rendering**: DynamicPageRenderer overrides default About/Pricing/Landing pages when published
+
+## Spotify Integration Details
+- **OAuth Flow**: User clicks Connect → redirected to Spotify → callback stores tokens in DB
+- **Data Available**: Artist profile, followers, popularity, top tracks, albums/singles, related artists
+- **Pages**: /spotify (analytics dashboard), /settings > Integrations tab (connect/disconnect)
+- **Redirect URI**: {FRONTEND_URL}/api/spotify/callback (must be registered in Spotify Developer Dashboard)
+- **Library**: spotipy (Python)
 
 ## Backend Route Files
-- `server.py` — Auth, Releases, Tracks, Distribution, Analytics, Goals, Wallet, Subscriptions, Purchases, Calendar, Social, Pre-Save, Notifications, Artist Profile
-- `routes/page_builder_routes.py` — Page Builder CRUD + publish
+- `server.py` — Auth, Releases, Tracks, Distribution, Analytics, Goals, Wallet, Subscriptions, Purchases
+- `routes/page_builder_routes.py` — Page Builder CRUD + publish + file upload + public file serving
+- `routes/spotify_routes.py` — Spotify OAuth, artist data, connection management
 - `routes/messages_routes.py` — In-App Messaging / Chat
 - `routes/royalty_routes.py` — Producer Royalty Splits
 - `routes/payouts_routes.py` — Admin Payout Dashboard
@@ -72,9 +82,11 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - `routes/paypal_routes.py` — PayPal integration
 
 ## DB Collections
-users, releases, tracks, stream_events, artist_profiles, beats, contracts, conversations, messages, typing_status, royalty_splits, split_earnings, wallets, withdrawals, payout_settings, goals, notifications, notification_preferences, presave_campaigns, collaboration_posts, collab_invites, saved_strategies, digest_log, page_layouts
+users, releases, tracks, stream_events, artist_profiles, beats, contracts, conversations, messages, typing_status, royalty_splits, split_earnings, wallets, withdrawals, payout_settings, goals, notifications, notification_preferences, presave_campaigns, collaboration_posts, collab_invites, saved_strategies, digest_log, page_layouts, spotify_connections
 
 ## Remaining / Future Tasks
-- P1: Real DSP API OAuth (Spotify/Apple Music credentials needed)
-- P2: Further server.py refactoring (analytics, purchases sections)
-- P3: Replace simulated DSP data with real API feeds
+- P0: User must add redirect URI to Spotify Developer Dashboard for OAuth to work on production
+- P0: Remind user to deploy (Save to Github) so login fix + page builder + Spotify work on kalmori.org
+- P2: Further server.py refactoring (analytics, purchases sections into /routes/)
+- P3: Apple Music for Artists integration (when API credentials available)
+- P3: YouTube Music Analytics integration
