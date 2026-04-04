@@ -461,7 +461,21 @@ const PageBuilderPage = () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API}/admin/pages/${slug}`, { withCredentials: true });
-      setBlocks(res.data.blocks || []);
+      const pageBlocks = res.data.blocks || [];
+      // Auto-seed with current website content if page has no blocks
+      if (pageBlocks.length === 0) {
+        try {
+          const seedRes = await axios.post(`${API}/admin/pages/${slug}/seed-defaults`, {}, { withCredentials: true });
+          toast.success(`Loaded ${seedRes.data.block_count} blocks from current site layout`);
+          // Re-fetch to get seeded blocks
+          const refreshRes = await axios.get(`${API}/admin/pages/${slug}`, { withCredentials: true });
+          setBlocks(refreshRes.data.blocks || []);
+          setPublished(refreshRes.data.published || false);
+          setPageTitle(refreshRes.data.title || slug.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase()) + ' Page');
+          return;
+        } catch { /* fallback to empty */ }
+      }
+      setBlocks(pageBlocks);
       setPublished(res.data.published || false);
       setPageTitle(res.data.title || slug.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase()) + ' Page');
     } catch { toast.error('Failed to load page'); }

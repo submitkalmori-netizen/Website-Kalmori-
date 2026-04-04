@@ -200,6 +200,59 @@ async def admin_update_user(user_id: str, update: AdminUserUpdate, request: Requ
         "notes": str(update_doc), "created_at": datetime.now(timezone.utc).isoformat()})
     return {"message": "User updated"}
 
+
+@admin_router.delete("/users/cleanup/non-admin")
+async def admin_cleanup_non_admin_users(request: Request):
+    """Admin: Delete all non-admin users and their related data"""
+    await require_admin(request)
+    non_admins = await db.users.find({"role": {"$ne": "admin"}}, {"id": 1, "_id": 0}).to_list(10000)
+    user_ids = [u["id"] for u in non_admins]
+
+    if not user_ids:
+        return {"message": "No non-admin users found", "deleted_count": 0}
+
+    # Delete user-related data from all collections
+    collections_to_clean = [
+        "releases", "tracks", "stream_events", "artist_profiles",
+        "saved_strategies", "goals", "notifications", "notification_preferences",
+        "digest_log", "presave_campaigns", "wallets", "withdrawals",
+        "payout_settings", "collaboration_posts", "collab_invites",
+        "conversations", "messages", "typing_status", "spotify_connections",
+    ]
+    cleanup_report = {}
+    for coll_name in collections_to_clean:
+        coll = db[coll_name]
+        result = await coll.delete_many({"$or": [
+            {"user_id": {"$in": user_ids}},
+            {"artist_id": {"$in": user_ids}},
+            {"owner_id": {"$in": user_ids}},
+        ]})
+        if result.deleted_count > 0:
+            cleanup_report[coll_name] = result.deleted_count
+
+    # Also clean up beats owned by non-admins
+    beats_result = await db.beats.delete_many({"producer_id": {"$in": user_ids}})
+    if beats_result.deleted_count > 0:
+        cleanup_report["beats"] = beats_result.deleted_count
+
+    # Clean up royalty splits
+    splits_result = await db.royalty_splits.delete_many({"$or": [
+        {"producer_id": {"$in": user_ids}},
+        {"artist_id": {"$in": user_ids}},
+    ]})
+    if splits_result.deleted_count > 0:
+        cleanup_report["royalty_splits"] = splits_result.deleted_count
+
+    # Delete the users themselves
+    user_result = await db.users.delete_many({"role": {"$ne": "admin"}})
+    cleanup_report["users"] = user_result.deleted_count
+
+    return {
+        "message": f"Deleted {user_result.deleted_count} non-admin users and related data",
+        "deleted_count": user_result.deleted_count,
+        "cleanup_details": cleanup_report,
+    }
+
 @admin_router.get("/users/{user_id}/detail")
 async def admin_get_user_detail(user_id: str, request: Request):
     await require_admin(request)
