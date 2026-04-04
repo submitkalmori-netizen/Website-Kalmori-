@@ -39,14 +39,17 @@ const BeatPreview = ({ beat, isPlaying, onToggle, audioRef }) => (
       <p className="text-xs text-gray-400">{beat.genre} &middot; {beat.bpm} BPM &middot; Key: {beat.key}</p>
     </div>
     {isPlaying && (
-      <div className="flex items-center gap-1">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="w-1 bg-[#E040FB] rounded-full animate-pulse" style={{
-            height: `${12 + Math.random() * 16}px`,
-            animationDelay: `${i * 0.1}s`,
-            animationDuration: `${0.4 + Math.random() * 0.3}s`
-          }} />
-        ))}
+      <div className="flex items-center gap-2">
+        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#E040FB]/15 text-[#E040FB] tracking-wider">TAGGED</span>
+        <div className="flex items-center gap-1">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="w-1 bg-[#E040FB] rounded-full animate-pulse" style={{
+              height: `${12 + Math.random() * 16}px`,
+              animationDelay: `${i * 0.1}s`,
+              animationDuration: `${0.4 + Math.random() * 0.3}s`
+            }} />
+          ))}
+        </div>
       </div>
     )}
     <div className="flex items-center gap-3 text-xs text-gray-400">

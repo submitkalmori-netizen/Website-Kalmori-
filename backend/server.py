@@ -3422,6 +3422,19 @@ async def startup():
     except Exception as e:
         logger.error(f"Storage init failed: {e}")
 
+    # Generate voice tag if not present
+    tag_path = os.path.join(os.path.dirname(__file__), 'kalmori_tag.mp3')
+    if not os.path.exists(tag_path):
+        try:
+            from emergentintegrations.llm.openai import OpenAITextToSpeech
+            tts = OpenAITextToSpeech(api_key=os.environ.get("EMERGENT_LLM_KEY"))
+            audio_bytes = await tts.generate_speech(text="Kalmori", model="tts-1", voice="onyx", speed=0.9, response_format="mp3")
+            with open(tag_path, 'wb') as f:
+                f.write(audio_bytes)
+            logger.info(f"Voice tag generated: {len(audio_bytes)} bytes")
+        except Exception as e:
+            logger.warning(f"Voice tag generation failed: {e}")
+
     # Seed admin
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@tunedrop.com")
     admin_password = os.environ.get("ADMIN_PASSWORD", "Admin123!")

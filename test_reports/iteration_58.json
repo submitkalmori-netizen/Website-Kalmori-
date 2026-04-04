@@ -1,0 +1,93 @@
+{
+  "summary": "Iteration 58 - Beat Preview Watermark System. All 14 backend tests passed (100%). All frontend features verified working correctly. The watermark system is fully functional.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: Voice tag file exists at /app/backend/kalmori_tag.mp3 (11520 bytes)",
+    "Backend: Beat listing shows preview_url field when available",
+    "Backend: Beats with audio have both audio_url (clean) and preview_url (watermarked)",
+    "Backend: GET /api/beats/{beat_id}/stream serves watermarked preview audio",
+    "Backend: Stream endpoint returns 404 for non-existent beat",
+    "Backend: POST /api/beats/{beat_id}/watermark works for admin (regenerates watermark)",
+    "Backend: POST /api/beats/{beat_id}/watermark returns 403 for non-admin",
+    "Backend: POST /api/beats/{beat_id}/watermark returns 401 without auth",
+    "Backend: Watermark regeneration returns 404 for beat without audio",
+    "Backend: GET /api/beats/{beat_id} includes preview_url field",
+    "Backend: GET /api/purchases/{id}/download endpoint exists (returns 404 for non-existent)",
+    "Backend: Download endpoint requires authentication",
+    "Backend: Login with submitkalmori@gmail.com / MAYAsimpSON37!! works",
+    "Backend: GET /api/admin/contracts returns contracts list (admin only)",
+    "Frontend: /instrumentals page loads with 8 beats",
+    "Frontend: Play button works - clicking plays audio from stream endpoint",
+    "Frontend: TAGGED badge appears while beat is playing",
+    "Frontend: Purchase modal Step 1 - License selection shows 4 tiers (Basic $29.99, Premium $79.99, Unlimited $149.99, Exclusive $499.99)",
+    "Frontend: Purchase modal Step 2 - Contract signing with ORDER SUMMARY, LICENSE TERMS, BINDING TERMS, DIGITAL SIGNATURE",
+    "Frontend: Step 2 has signer-name-input, agree-terms-checkbox, confirm-purchase-btn, back-to-license-btn",
+    "Frontend: Admin /admin/contracts page loads with stats (Total: 21, Paid: 0, Pending: 21, Revenue: $0.00)",
+    "Frontend: Admin contracts page has search input and status filter",
+    "Frontend: Admin contracts page shows contracts table with PDF download buttons"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iteration58_watermark.py",
+    "/app/test_reports/pytest/pytest_results_iteration58.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration58_watermark.py"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin": {
+      "email": "submitkalmori@gmail.com",
+      "password": "MAYAsimpSON37!!",
+      "role": "admin"
+    }
+  },
+  "seed_data_creation": "Test user created during backend testing for non-admin watermark regeneration test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 58 tested the new Beat Preview Watermark System. The system uses pydub + ffmpeg to overlay a 'Kalmori' voice tag (stored at /app/backend/kalmori_tag.mp3, 11520 bytes) on beat audio at 15-second intervals starting at 3 seconds. Key endpoints: POST /api/beats/{beat_id}/audio uploads audio and generates both clean (audio_url) and watermarked (preview_url) versions. GET /api/beats/{beat_id}/stream serves the watermarked preview. POST /api/beats/{beat_id}/watermark regenerates watermark (admin only). The test beat 'Neon Dreams' (beat_0fc024b75417) has audio with both versions. Frontend shows TAGGED badge while playing. Purchase flow: Step 1 license selection -> Step 2 contract signing -> Stripe checkout. Admin contracts page at /admin/contracts shows all signed contracts with PDF download.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "features_verified": {
+    "watermark_system": {
+      "status": "Working",
+      "voice_tag_file": "/app/backend/kalmori_tag.mp3 (11520 bytes)",
+      "watermark_function": "_watermark_audio() in beats_routes.py - overlays tag at 15s intervals starting at 3s",
+      "endpoints": {
+        "POST /api/beats/{beat_id}/audio": "Uploads audio, returns audio_url (clean) and preview_url (watermarked)",
+        "GET /api/beats/{beat_id}/stream": "Serves watermarked preview (not original)",
+        "POST /api/beats/{beat_id}/watermark": "Regenerates watermark (admin only, returns 403 for non-admin)"
+      }
+    },
+    "beat_catalog": {
+      "status": "Working",
+      "beats_count": 8,
+      "preview_url_field": "Present in beat listing and single beat responses",
+      "tagged_badge": "Visible while playing"
+    },
+    "purchase_flow": {
+      "status": "Working",
+      "step1": "License selection - 4 tiers with prices",
+      "step2": "Contract signing - ORDER SUMMARY, LICENSE TERMS, BINDING TERMS, DIGITAL SIGNATURE"
+    },
+    "admin_contracts": {
+      "status": "Working",
+      "stats": "Total Contracts, Paid, Pending, Revenue",
+      "features": "Search, Status filter, PDF download"
+    }
+  }
+}

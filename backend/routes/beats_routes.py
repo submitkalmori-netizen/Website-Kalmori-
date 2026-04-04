@@ -4,6 +4,31 @@ from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
 import logging
+import os
+from io import BytesIO
+
+logger = logging.getLogger(__name__)
+
+VOICE_TAG_PATH = os.path.join(os.path.dirname(__file__), '..', 'kalmori_tag.mp3')
+
+def _watermark_audio(audio_bytes: bytes, tag_interval_sec: int = 15) -> bytes:
+    """Overlay voice tag on audio at regular intervals"""
+    try:
+        from pydub import AudioSegment
+        audio = AudioSegment.from_file(BytesIO(audio_bytes))
+        tag = AudioSegment.from_mp3(VOICE_TAG_PATH) - 2  # slightly quieter
+        tag_interval_ms = tag_interval_sec * 1000
+        watermarked = audio
+        position = 3000  # start 3s in
+        while position < len(audio) - len(tag):
+            watermarked = watermarked.overlay(tag, position=position)
+            position += tag_interval_ms
+        buf = BytesIO()
+        watermarked.export(buf, format="mp3", bitrate="192k")
+        return buf.getvalue()
+    except Exception as e:
+        logger.error(f"Watermark failed: {e}")
+        return audio_bytes  # fallback to original if watermarking fails
 
 logger = logging.getLogger(__name__)
 
@@ -151,16 +176,32 @@ async def upload_beat_audio(beat_id: str, request: Request, file: UploadFile = F
         raise HTTPException(status_code=400, detail=f"Unsupported audio type: {content_type}")
     
     ext = file.filename.split(".")[-1] if "." in file.filename else "mp3"
-    path = f"{APP_NAME}/beats/{beat_id}/{uuid.uuid4().hex}.{ext}"
+    file_id = uuid.uuid4().hex
+    path = f"{APP_NAME}/beats/{beat_id}/{file_id}.{ext}"
     data = await file.read()
     
+    # Upload original (clean) audio
     put_object(path, data, content_type)
+    
+    # Generate and upload watermarked preview
+    preview_path = f"{APP_NAME}/beats/{beat_id}/{file_id}_preview.mp3"
+    try:
+        watermarked = _watermark_audio(data)
+        put_object(preview_path, watermarked, "audio/mpeg")
+        logger.info(f"Watermarked preview generated for beat {beat_id}")
+    except Exception as e:
+        logger.warning(f"Preview generation failed for {beat_id}: {e}")
+        preview_path = path  # fallback to original
     
     await db.beats.update_one(
         {"id": beat_id},
-        {"$set": {"audio_url": path, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {
+            "audio_url": path,
+            "preview_url": preview_path,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
     )
-    return {"audio_url": path, "message": "Audio uploaded successfully"}
+    return {"audio_url": path, "preview_url": preview_path, "message": "Audio uploaded with watermarked preview"}
 
 
 @beats_router.post("/{beat_id}/cover")
@@ -191,14 +232,15 @@ async def stream_beat(beat_id: str):
         raise HTTPException(status_code=404, detail="Audio not found")
     
     from fastapi.responses import StreamingResponse
-    from io import BytesIO
-    data, content_type = get_object(beat["audio_url"])
+    # Serve watermarked preview if available, otherwise original
+    stream_url = beat.get("preview_url") or beat["audio_url"]
+    data, content_type = get_object(stream_url)
     
     # Increment play count
     await db.beats.update_one({"id": beat_id}, {"$inc": {"plays": 1}})
     
     return StreamingResponse(BytesIO(data), media_type=content_type, headers={
-        "Content-Disposition": f'inline; filename="{beat.get("title", "beat")}.mp3"',
+        "Content-Disposition": f'inline; filename="{beat.get("title", "beat")}_preview.mp3"',
         "Accept-Ranges": "bytes"
     })
 
@@ -226,3 +268,21 @@ async def delete_beat(beat_id: str, request: Request):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Beat not found")
     return {"message": "Beat deleted"}
+
+
+@beats_router.post("/{beat_id}/watermark")
+async def regenerate_watermark(beat_id: str, request: Request):
+    """Admin: Regenerate watermarked preview for an existing beat"""
+    await require_admin(request)
+    beat = await db.beats.find_one({"id": beat_id}, {"_id": 0})
+    if not beat or not beat.get("audio_url"):
+        raise HTTPException(status_code=404, detail="Beat audio not found")
+    data, _ = get_object(beat["audio_url"])
+    preview_path = beat["audio_url"].rsplit(".", 1)[0] + "_preview.mp3"
+    watermarked = _watermark_audio(data)
+    put_object(preview_path, watermarked, "audio/mpeg")
+    await db.beats.update_one(
+        {"id": beat_id},
+        {"$set": {"preview_url": preview_path, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"preview_url": preview_path, "message": "Watermark preview regenerated"}
