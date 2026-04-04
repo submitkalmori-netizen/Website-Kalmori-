@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
-import { ChatCircle, PaperPlaneTilt, User, ArrowLeft, Paperclip, FileAudio, FileArrowDown, Image, File as FileIcon, X, Play, Pause } from '@phosphor-icons/react';
+import { ChatCircle, PaperPlaneTilt, User, ArrowLeft, Paperclip, FileArrowDown, Play, Pause, Checks, Check } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
-function AudioPlayer({ src, fileName, token }) {
+function AudioPlayer({ src, fileName }) {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef(null);
-
   const togglePlay = () => {
     if (!audioRef.current) return;
-    if (playing) { audioRef.current.pause(); }
-    else { audioRef.current.play().catch(() => {}); }
+    playing ? audioRef.current.pause() : audioRef.current.play().catch(() => {});
     setPlaying(!playing);
   };
-
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
@@ -23,9 +20,7 @@ function AudioPlayer({ src, fileName, token }) {
     a.addEventListener('ended', onEnd);
     return () => a.removeEventListener('ended', onEnd);
   }, []);
-
   const audioSrc = src.startsWith('http') ? src : `${API}/api/messages/file/${src}`;
-
   return (
     <div className="flex items-center gap-3 bg-black/30 rounded-lg p-2.5 min-w-[220px]">
       <audio ref={audioRef} src={audioSrc} preload="none" />
@@ -48,11 +43,7 @@ function FileAttachment({ msg, isMe }) {
     if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1048576).toFixed(1)} MB`;
   };
-
-  if (msg.file_type === 'audio') {
-    return <AudioPlayer src={msg.file_url} fileName={msg.file_name} />;
-  }
-
+  if (msg.file_type === 'audio') return <AudioPlayer src={msg.file_url} fileName={msg.file_name} />;
   if (msg.file_type === 'image') {
     return (
       <div className="space-y-1.5">
@@ -61,12 +52,10 @@ function FileAttachment({ msg, isMe }) {
       </div>
     );
   }
-
   return (
     <a href={fileUrl} target="_blank" rel="noopener noreferrer"
       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border ${isMe ? 'border-white/20 bg-white/10' : 'border-[#333] bg-[#0a0a0a]'} hover:brightness-110 transition`}
-      data-testid="file-download-link"
-    >
+      data-testid="file-download-link">
       <FileArrowDown className="w-5 h-5 shrink-0" />
       <div className="min-w-0">
         <p className="text-xs font-medium truncate">{msg.file_name}</p>
@@ -76,16 +65,48 @@ function FileAttachment({ msg, isMe }) {
   );
 }
 
+function ReadReceipt({ msg, isMe }) {
+  if (!isMe || msg.sender_id === 'system') return null;
+  return (
+    <span className="inline-flex items-center ml-1" data-testid={`receipt-${msg.id}`}>
+      {msg.read ? (
+        <Checks className="w-3.5 h-3.5 text-[#7C4DFF]" weight="bold" />
+      ) : (
+        <Check className="w-3.5 h-3.5 text-white/40" weight="bold" />
+      )}
+    </span>
+  );
+}
+
+function TypingIndicator({ name }) {
+  return (
+    <div className="flex justify-start" data-testid="typing-indicator">
+      <div className="bg-[#1a1a1a] border border-[#222] rounded-2xl rounded-bl-md px-4 py-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-gray-400">{name} is typing</span>
+          <span className="flex gap-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
   const [activeConvo, setActiveConvo] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [otherTyping, setOtherTyping] = useState(false);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef(null);
   const pollRef = useRef(null);
+  const typingRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const token = localStorage.getItem('token') || localStorage.getItem('access_token');
@@ -107,7 +128,15 @@ export default function MessagesPage() {
     try {
       const res = await fetch(`${API}/api/messages/${convoId}`, { headers });
       if (res.ok) {
-        setMessages(await res.json());
+        const data = await res.json();
+        // Handle both old format (array) and new format ({messages, typing})
+        if (Array.isArray(data)) {
+          setMessages(data);
+          setOtherTyping(false);
+        } else {
+          setMessages(data.messages || []);
+          setOtherTyping((data.typing || []).length > 0);
+        }
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       }
     } catch (e) { console.error(e); }
@@ -121,9 +150,20 @@ export default function MessagesPage() {
     pollRef.current = setInterval(() => {
       fetchMessages(activeConvo);
       fetchConversations();
-    }, 4000);
+    }, 3000);
     return () => clearInterval(pollRef.current);
   }, [activeConvo, fetchMessages, fetchConversations]);
+
+  const sendTypingSignal = useCallback(() => {
+    if (!activeConvo) return;
+    // Throttle: send at most once per 2 seconds
+    if (typingRef.current) return;
+    typingRef.current = true;
+    fetch(`${API}/api/messages/${activeConvo}/typing`, {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+    }).catch(() => {});
+    setTimeout(() => { typingRef.current = false; }, 2000);
+  }, [activeConvo, token]);
 
   const handleSend = async () => {
     if (!newMsg.trim() || !activeConvo) return;
@@ -149,27 +189,16 @@ export default function MessagesPage() {
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !activeConvo) return;
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error('File too large. Max 50MB.');
-      return;
-    }
+    if (file.size > 50 * 1024 * 1024) { toast.error('File too large. Max 50MB.'); return; }
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
       const res = await fetch(`${API}/api/messages/${activeConvo}/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
       });
-      if (res.ok) {
-        toast.success('File shared!');
-        fetchMessages(activeConvo);
-        fetchConversations();
-      } else {
-        const err = await res.json();
-        toast.error(err.detail || 'Upload failed');
-      }
+      if (res.ok) { toast.success('File shared!'); fetchMessages(activeConvo); fetchConversations(); }
+      else { const err = await res.json(); toast.error(err.detail || 'Upload failed'); }
     } catch (e) { toast.error('Upload failed'); }
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -177,6 +206,11 @@ export default function MessagesPage() {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+
+  const handleInputChange = (e) => {
+    setNewMsg(e.target.value);
+    sendTypingSignal();
   };
 
   const activeConvoData = conversations.find(c => c.id === activeConvo);
@@ -211,12 +245,9 @@ export default function MessagesPage() {
                 <p className="text-gray-600 text-xs mt-1">Accept a collab invite to start chatting</p>
               </div>
             ) : conversations.map(c => (
-              <button
-                key={c.id}
-                onClick={() => setActiveConvo(c.id)}
+              <button key={c.id} onClick={() => setActiveConvo(c.id)}
                 className={`w-full p-3 flex items-center gap-3 border-b border-[#181818] text-left transition hover:bg-[#151515] ${activeConvo === c.id ? 'bg-[#151515] border-l-2 border-l-[#7C4DFF]' : ''}`}
-                data-testid={`convo-${c.id}`}
-              >
+                data-testid={`convo-${c.id}`}>
                 <div className="w-10 h-10 rounded-full bg-[#7C4DFF]/20 flex items-center justify-center shrink-0">
                   <User className="w-5 h-5 text-[#7C4DFF]" />
                 </div>
@@ -263,7 +294,11 @@ export default function MessagesPage() {
                   <p className="text-white font-semibold text-sm" data-testid="chat-partner-name">
                     {activeConvoData?.other_user?.artist_name || 'Collaborator'}
                   </p>
-                  <p className="text-gray-500 text-xs">{activeConvoData?.post_title}</p>
+                  <p className="text-gray-500 text-xs">
+                    {otherTyping ? (
+                      <span className="text-[#7C4DFF]" data-testid="header-typing">typing...</span>
+                    ) : activeConvoData?.post_title}
+                  </p>
                 </div>
               </div>
 
@@ -284,22 +319,26 @@ export default function MessagesPage() {
                   return (
                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`} data-testid={`msg-${msg.id}`}>
                       <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
-                        isMe
-                          ? 'bg-[#7C4DFF] text-white rounded-br-md'
-                          : 'bg-[#1a1a1a] text-gray-200 border border-[#222] rounded-bl-md'
+                        isMe ? 'bg-[#7C4DFF] text-white rounded-br-md' : 'bg-[#1a1a1a] text-gray-200 border border-[#222] rounded-bl-md'
                       }`}>
                         {msg.file_url ? (
                           <FileAttachment msg={msg} isMe={isMe} />
                         ) : (
                           <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
                         )}
-                        <p className={`text-[10px] mt-1 ${isMe ? 'text-white/50' : 'text-gray-600'}`}>
-                          {formatTime(msg.created_at)}
-                        </p>
+                        <div className={`flex items-center gap-0.5 mt-1 ${isMe ? 'justify-end' : ''}`}>
+                          <span className={`text-[10px] ${isMe ? 'text-white/50' : 'text-gray-600'}`}>
+                            {formatTime(msg.created_at)}
+                          </span>
+                          <ReadReceipt msg={msg} isMe={isMe} />
+                        </div>
                       </div>
                     </div>
                   );
                 })}
+                {otherTyping && (
+                  <TypingIndicator name={activeConvoData?.other_user?.artist_name || 'Someone'} />
+                )}
                 <div ref={messagesEndRef} />
               </div>
 
@@ -314,31 +353,18 @@ export default function MessagesPage() {
                 <div className="flex items-center gap-2">
                   <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden"
                     accept="audio/*,image/*,.pdf,.zip,.wav,.mp3,.flac,.aif,.aiff,.stem,.txt,.doc,.docx" data-testid="file-input" />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
+                  <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
                     className="w-10 h-10 rounded-xl bg-[#1a1a1a] border border-[#333] text-gray-400 flex items-center justify-center hover:text-white hover:border-[#7C4DFF] disabled:opacity-40 transition"
-                    data-testid="attach-file-btn"
-                    title="Share file or audio"
-                  >
+                    data-testid="attach-file-btn" title="Share file or audio">
                     <Paperclip className="w-5 h-5" />
                   </button>
-                  <input
-                    type="text"
-                    value={newMsg}
-                    onChange={(e) => setNewMsg(e.target.value)}
-                    onKeyDown={handleKeyDown}
+                  <input type="text" value={newMsg} onChange={handleInputChange} onKeyDown={handleKeyDown}
                     placeholder="Type a message..."
                     className="flex-1 bg-[#111] border border-[#333] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#7C4DFF] placeholder-gray-600"
-                    data-testid="message-input"
-                    disabled={sending || uploading}
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={!newMsg.trim() || sending}
+                    data-testid="message-input" disabled={sending || uploading} />
+                  <button onClick={handleSend} disabled={!newMsg.trim() || sending}
                     className="w-10 h-10 rounded-xl bg-[#7C4DFF] text-white flex items-center justify-center hover:brightness-110 disabled:opacity-40 transition"
-                    data-testid="send-message-btn"
-                  >
+                    data-testid="send-message-btn">
                     <PaperPlaneTilt className="w-5 h-5" />
                   </button>
                 </div>

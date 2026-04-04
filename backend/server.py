@@ -2049,12 +2049,26 @@ async def get_messages(conversation_id: str, request: Request):
     messages = await db.messages.find(
         {"conversation_id": conversation_id}, {"_id": 0}
     ).sort("created_at", 1).to_list(200)
-    # Mark messages from other user as read
+    # Mark messages from other user as read with timestamp
+    now = datetime.now(timezone.utc).isoformat()
     await db.messages.update_many(
         {"conversation_id": conversation_id, "sender_id": {"$ne": user["id"]}, "read": False},
-        {"$set": {"read": True}}
+        {"$set": {"read": True, "read_at": now}}
     )
-    return messages
+    # Refresh read status for the messages we just marked
+    for m in messages:
+        if m.get("sender_id") != user["id"] and not m.get("read"):
+            m["read"] = True
+            m["read_at"] = now
+    # Get typing status of other participants
+    typing_users = []
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=4)).isoformat()
+    other_ids = [p for p in convo["participants"] if p != user["id"]]
+    for oid in other_ids:
+        ts = await db.typing_status.find_one({"conversation_id": conversation_id, "user_id": oid, "timestamp": {"$gt": cutoff}})
+        if ts:
+            typing_users.append(oid)
+    return {"messages": messages, "typing": typing_users}
 
 @api_router.post("/messages/{conversation_id}")
 async def send_message(conversation_id: str, request: Request):
@@ -2158,6 +2172,20 @@ async def get_chat_file(file_path: str, request: Request):
     fname = parts[-1] if parts else "file"
     return StreamingResponse(BytesIO(data), media_type=content_type,
         headers={"Content-Disposition": f'inline; filename="{fname}"'})
+
+@api_router.post("/messages/{conversation_id}/typing")
+async def set_typing(conversation_id: str, request: Request):
+    """Signal that the user is typing in a conversation"""
+    user = await get_current_user(request)
+    convo = await db.conversations.find_one({"id": conversation_id, "participants": user["id"]})
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    await db.typing_status.update_one(
+        {"conversation_id": conversation_id, "user_id": user["id"]},
+        {"$set": {"timestamp": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"ok": True}
 
 # ============= RELEASE CALENDAR =============
 
