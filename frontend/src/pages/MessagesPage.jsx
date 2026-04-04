@@ -1,9 +1,80 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
-import { ChatCircle, PaperPlaneTilt, User, ArrowLeft, Circle } from '@phosphor-icons/react';
+import { ChatCircle, PaperPlaneTilt, User, ArrowLeft, Paperclip, FileAudio, FileArrowDown, Image, File as FileIcon, X, Play, Pause } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+function AudioPlayer({ src, fileName, token }) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (playing) { audioRef.current.pause(); }
+    else { audioRef.current.play().catch(() => {}); }
+    setPlaying(!playing);
+  };
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onEnd = () => setPlaying(false);
+    a.addEventListener('ended', onEnd);
+    return () => a.removeEventListener('ended', onEnd);
+  }, []);
+
+  const audioSrc = src.startsWith('http') ? src : `${API}/api/messages/file/${src}`;
+
+  return (
+    <div className="flex items-center gap-3 bg-black/30 rounded-lg p-2.5 min-w-[220px]">
+      <audio ref={audioRef} src={audioSrc} preload="none" />
+      <button onClick={togglePlay} className="w-9 h-9 rounded-full bg-[#7C4DFF] flex items-center justify-center shrink-0 hover:brightness-110" data-testid="audio-play-btn">
+        {playing ? <Pause className="w-4 h-4 text-white" weight="fill" /> : <Play className="w-4 h-4 text-white" weight="fill" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate">{fileName}</p>
+        <p className="text-[10px] text-gray-500">Audio file</p>
+      </div>
+    </div>
+  );
+}
+
+function FileAttachment({ msg, isMe }) {
+  const fileUrl = msg.file_url?.startsWith('http') ? msg.file_url : `${API}/api/messages/file/${msg.file_url}`;
+  const formatSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  };
+
+  if (msg.file_type === 'audio') {
+    return <AudioPlayer src={msg.file_url} fileName={msg.file_name} />;
+  }
+
+  if (msg.file_type === 'image') {
+    return (
+      <div className="space-y-1.5">
+        <img src={fileUrl} alt={msg.file_name} className="max-w-[280px] rounded-lg border border-white/10" loading="lazy" />
+        <p className="text-[10px] opacity-60">{msg.file_name} &middot; {formatSize(msg.file_size)}</p>
+      </div>
+    );
+  }
+
+  return (
+    <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border ${isMe ? 'border-white/20 bg-white/10' : 'border-[#333] bg-[#0a0a0a]'} hover:brightness-110 transition`}
+      data-testid="file-download-link"
+    >
+      <FileArrowDown className="w-5 h-5 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-xs font-medium truncate">{msg.file_name}</p>
+        <p className="text-[10px] opacity-60">{formatSize(msg.file_size)}</p>
+      </div>
+    </a>
+  );
+}
 
 export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
@@ -12,8 +83,10 @@ export default function MessagesPage() {
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef(null);
   const pollRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const token = localStorage.getItem('token') || localStorage.getItem('access_token');
   const headers = { Authorization: `Bearer ${token}` };
@@ -45,7 +118,6 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!activeConvo) return;
     fetchMessages(activeConvo);
-    // Poll for new messages every 4 seconds
     pollRef.current = setInterval(() => {
       fetchMessages(activeConvo);
       fetchConversations();
@@ -74,6 +146,35 @@ export default function MessagesPage() {
     setSending(false);
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeConvo) return;
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('File too large. Max 50MB.');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API}/api/messages/${activeConvo}/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (res.ok) {
+        toast.success('File shared!');
+        fetchMessages(activeConvo);
+        fetchConversations();
+      } else {
+        const err = await res.json();
+        toast.error(err.detail || 'Upload failed');
+      }
+    } catch (e) { toast.error('Upload failed'); }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
@@ -100,7 +201,6 @@ export default function MessagesPage() {
             <h2 className="text-white font-bold text-lg" data-testid="messages-title">Messages</h2>
             <p className="text-gray-500 text-xs mt-0.5">Chat with your collaborators</p>
           </div>
-
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="p-6 text-center text-gray-500 text-sm">Loading...</div>
@@ -125,7 +225,9 @@ export default function MessagesPage() {
                     <p className="text-white text-sm font-medium truncate">{c.other_user?.artist_name || 'Unknown'}</p>
                     <span className="text-[10px] text-gray-600 shrink-0">{formatTime(c.last_message?.created_at)}</span>
                   </div>
-                  <p className="text-gray-500 text-xs truncate">{c.last_message?.text || c.post_title}</p>
+                  <p className="text-gray-500 text-xs truncate">
+                    {c.last_message?.file_url ? (c.last_message?.file_type === 'audio' ? 'Shared an audio file' : 'Shared a file') : c.last_message?.text || c.post_title}
+                  </p>
                 </div>
                 {c.unread_count > 0 && (
                   <span className="w-5 h-5 rounded-full bg-[#7C4DFF] text-white text-[10px] font-bold flex items-center justify-center shrink-0" data-testid={`unread-${c.id}`}>
@@ -151,15 +253,11 @@ export default function MessagesPage() {
             <>
               {/* Chat Header */}
               <div className="p-4 border-b border-[#222] flex items-center gap-3">
-                <button
-                  onClick={() => setActiveConvo(null)}
-                  className="md:hidden text-gray-400 hover:text-white"
-                  data-testid="back-btn"
-                >
+                <button onClick={() => setActiveConvo(null)} className="md:hidden text-gray-400 hover:text-white" data-testid="back-btn">
                   <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div className="w-9 h-9 rounded-full bg-[#E040FB]/20 flex items-center justify-center">
-                  <User className="w-4.5 h-4.5 text-[#E040FB]" />
+                  <User className="w-4 h-4 text-[#E040FB]" />
                 </div>
                 <div>
                   <p className="text-white font-semibold text-sm" data-testid="chat-partner-name">
@@ -190,7 +288,11 @@ export default function MessagesPage() {
                           ? 'bg-[#7C4DFF] text-white rounded-br-md'
                           : 'bg-[#1a1a1a] text-gray-200 border border-[#222] rounded-bl-md'
                       }`}>
-                        <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+                        {msg.file_url ? (
+                          <FileAttachment msg={msg} isMe={isMe} />
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap break-words">{msg.text}</p>
+                        )}
                         <p className={`text-[10px] mt-1 ${isMe ? 'text-white/50' : 'text-gray-600'}`}>
                           {formatTime(msg.created_at)}
                         </p>
@@ -203,7 +305,24 @@ export default function MessagesPage() {
 
               {/* Message Input */}
               <div className="p-4 border-t border-[#222]">
+                {uploading && (
+                  <div className="mb-2 px-3 py-1.5 bg-[#7C4DFF]/10 border border-[#7C4DFF]/20 rounded-lg text-[#7C4DFF] text-xs flex items-center gap-2">
+                    <div className="w-3 h-3 border-2 border-[#7C4DFF] border-t-transparent rounded-full animate-spin" />
+                    Uploading file...
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden"
+                    accept="audio/*,image/*,.pdf,.zip,.wav,.mp3,.flac,.aif,.aiff,.stem,.txt,.doc,.docx" data-testid="file-input" />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-10 h-10 rounded-xl bg-[#1a1a1a] border border-[#333] text-gray-400 flex items-center justify-center hover:text-white hover:border-[#7C4DFF] disabled:opacity-40 transition"
+                    data-testid="attach-file-btn"
+                    title="Share file or audio"
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </button>
                   <input
                     type="text"
                     value={newMsg}
@@ -212,7 +331,7 @@ export default function MessagesPage() {
                     placeholder="Type a message..."
                     className="flex-1 bg-[#111] border border-[#333] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#7C4DFF] placeholder-gray-600"
                     data-testid="message-input"
-                    disabled={sending}
+                    disabled={sending || uploading}
                   />
                   <button
                     onClick={handleSend}

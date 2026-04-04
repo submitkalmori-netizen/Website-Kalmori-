@@ -2093,6 +2093,72 @@ async def send_message(conversation_id: str, request: Request):
         })
     return msg
 
+@api_router.post("/messages/{conversation_id}/upload")
+async def upload_chat_file(conversation_id: str, request: Request, file: UploadFile = File(...)):
+    """Upload a file/audio in a chat conversation"""
+    user = await get_current_user(request)
+    convo = await db.conversations.find_one({"id": conversation_id, "participants": user["id"]})
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    content = await file.read()
+    max_size = 50 * 1024 * 1024  # 50MB
+    if len(content) > max_size:
+        raise HTTPException(status_code=400, detail="File too large. Max 50MB.")
+    ext = file.filename.split(".")[-1].lower() if "." in file.filename else "bin"
+    ct = file.content_type or "application/octet-stream"
+    file_type = "audio" if ct.startswith("audio/") else "image" if ct.startswith("image/") else "file"
+    path = f"{APP_NAME}/chat/{conversation_id}/{uuid.uuid4().hex[:12]}.{ext}"
+    result = put_object(path, content, ct)
+    file_url = result.get("path") or result.get("url") or path
+    msg = {
+        "id": f"msg_{uuid.uuid4().hex[:12]}",
+        "conversation_id": conversation_id,
+        "sender_id": user["id"],
+        "sender_name": user.get("artist_name") or user.get("name", ""),
+        "text": file.filename,
+        "file_url": file_url,
+        "file_name": file.filename,
+        "file_type": file_type,
+        "file_size": len(content),
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.messages.insert_one(msg)
+    msg.pop("_id", None)
+    await db.conversations.update_one(
+        {"id": conversation_id},
+        {"$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    other_ids = [p for p in convo["participants"] if p != user["id"]]
+    for oid in other_ids:
+        await db.notifications.insert_one({
+            "id": f"notif_{uuid.uuid4().hex[:12]}", "user_id": oid,
+            "type": "new_message",
+            "message": f"{user.get('artist_name', 'Someone')} shared a file",
+            "read": False, "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+    return msg
+
+@api_router.get("/messages/file/{file_path:path}")
+async def get_chat_file(file_path: str, request: Request):
+    """Download a chat file (validates user is a participant)"""
+    user = await get_current_user(request)
+    # Extract conversation_id from path (format: APP_NAME/chat/{convo_id}/filename)
+    parts = file_path.split("/")
+    convo_id = None
+    for i, p in enumerate(parts):
+        if p == "chat" and i + 1 < len(parts):
+            convo_id = parts[i + 1]
+            break
+    if convo_id:
+        convo = await db.conversations.find_one({"id": convo_id, "participants": user["id"]})
+        if not convo:
+            raise HTTPException(status_code=403, detail="Access denied")
+    data, content_type = get_object(file_path)
+    fname = parts[-1] if parts else "file"
+    return StreamingResponse(BytesIO(data), media_type=content_type,
+        headers={"Content-Disposition": f'inline; filename="{fname}"'})
+
 # ============= RELEASE CALENDAR =============
 
 INDUSTRY_DATES = [
