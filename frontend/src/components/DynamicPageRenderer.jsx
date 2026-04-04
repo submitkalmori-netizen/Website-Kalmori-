@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { API } from '../App';
+import { API, BACKEND_URL } from '../App';
 import {
   MusicNotes, ChartLineUp, Users, Star, Rocket, ChatTeardropDots,
   ArrowRight, Check, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo,
@@ -14,14 +14,29 @@ const ICON_MAP = {
   FileText, Waveform, HandCoins, Palette, Lightning, ArrowRight
 };
 
+const resolveUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${BACKEND_URL}/api/files/${url}`;
+};
+
 const DynamicBlock = ({ block }) => {
   const { type, content, styles: s = {} } = block;
   const pad = `${s.padding || 40}px`;
   const bg = s.backgroundColor || '#0A0A0A';
   const tc = s.textColor || '#fff';
   const accent = s.accentColor || '#7C4DFF';
+  const customCss = s.customCss || '';
+  const blockId = `dyn-${block.id}`;
 
-  if (type === 'hero') return (
+  const wrap = (el) => (
+    <div id={blockId}>
+      {customCss && <style>{`#${blockId} { ${customCss} }`}</style>}
+      {el}
+    </div>
+  );
+
+  if (type === 'hero') return wrap(
     <section style={{ backgroundColor: bg, padding: `${pad} 24px`, textAlign: s.textAlign || 'center' }}>
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.05] tracking-tight mb-4" style={{ color: tc }}>{content.title}</h1>
@@ -34,7 +49,7 @@ const DynamicBlock = ({ block }) => {
     </section>
   );
 
-  if (type === 'text') return (
+  if (type === 'text') return wrap(
     <section style={{ backgroundColor: bg, padding: `${pad} 24px`, textAlign: s.textAlign || 'left' }}>
       <div className="mx-auto" style={{ maxWidth: `${s.maxWidth || 800}px` }}>
         {content.heading && <h2 className="text-2xl sm:text-3xl font-bold mb-4" style={{ color: s.headingColor || tc }}>{content.heading}</h2>}
@@ -43,9 +58,9 @@ const DynamicBlock = ({ block }) => {
     </section>
   );
 
-  if (type === 'image') return (
+  if (type === 'image') return wrap(
     <section style={{ backgroundColor: bg, padding: `${pad} 24px`, textAlign: 'center' }}>
-      {content.imageUrl && <img src={content.imageUrl} alt={content.altText || ''} className="max-w-full mx-auto" style={{ borderRadius: `${s.borderRadius || 16}px`, maxWidth: `${s.maxWidth || 900}px` }} />}
+      {content.imageUrl && <img src={resolveUrl(content.imageUrl)} alt={content.altText || ''} className="max-w-full mx-auto" style={{ borderRadius: `${s.borderRadius || 16}px`, maxWidth: `${s.maxWidth || 900}px` }} />}
       {content.caption && <p className="text-sm mt-3 opacity-50" style={{ color: tc }}>{content.caption}</p>}
     </section>
   );
