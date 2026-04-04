@@ -11,6 +11,10 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - **Auth**: JWT + Google Social Login + reCAPTCHA v2 + Email Verification
 - **AI**: OpenAI GPT-4o via Emergent LLM Key | **Email**: Resend | **PDF**: reportlab
 
+## UI Color Theme
+- **Landing page & site-wide buttons**: Purple/Pink/Magenta animated gradient (#7C4DFF → #E040FB → #FF4081)
+- **Login & Register pages only**: Blue-to-Purple animated gradient (#0095FF → #7468F8)
+
 ## Subscription Tiers
 | Plan | Price | Revenue Share | Releases | Features |
 |------|-------|---------------|----------|----------|
@@ -50,11 +54,10 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - Artist Profile Public Page, Pre-Save Campaigns, Collaborations
 
 ### UI/UX Dark Theme (Apr 2026)
-- Dark background with animated electric blue (#0095FF) to purple (#7468F8) gradients
-- CSS keyframe shimmer animations on Landing, Login, Register pages
+- Landing page: Purple/pink animated gradient text and buttons
+- Login & Register pages: Blue-to-purple animated gradient (#0095FF → #7468F8)
 - Kalmori Artist Agreement page (Artist + Producer/Label tabs)
 - RegisterPage 2-step flow with agreement link in terms checkbox
-- PublicLayout header icons with animated color pulse
 
 ## All Pages & Routes
 `/` `/login` `/register` `/select-role` `/verify-email` `/pricing` `/label` `/instrumentals` `/dashboard` `/releases` `/releases/new` `/analytics` `/wallet` `/purchases` `/collaborations` `/presave-manager` `/fan-analytics` `/revenue` `/leaderboard` `/goals` `/settings` `/presave/:id` `/artist/:slug` `/spotify-canvas` `/content-id` `/admin` `/admin/submissions` `/admin/users` `/admin/users/:userId` `/admin/beats` `/admin/royalty-import` `/admin/campaigns` `/admin/leads` `/agreement`

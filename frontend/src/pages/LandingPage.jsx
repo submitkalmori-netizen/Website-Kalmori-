@@ -22,7 +22,7 @@ const studioImage = 'https://images.pexels.com/photos/7586656/pexels-photo-75866
 
 // Animated Color Text (purple/magenta/pink cycling) — KALMORI branding
 const AnimatedColorText = ({ children, className = '' }) => (
-  <span className={`text-animated-blue ${className}`}>{children}</span>
+  <span className={`animate-color-cycle ${className}`}>{children}</span>
 );
 
 // Typewriter for hero — large layout
@@ -154,26 +154,9 @@ const LandingPage = () => {
     <PublicLayout>
       {/* CSS Animations */}
       <style>{`
-        @keyframes colorCycle { 0%{color:#0095FF} 33%{color:#7468F8} 66%{color:#0095FF} 100%{color:#7468F8} }
-        @keyframes taglineCycle { 0%{color:#0095FF} 50%{color:#7468F8} 100%{color:#0095FF} }
-        @keyframes btnGradient { 0%{background:#0095FF} 33%{background:#7468F8} 66%{background:#0095FF} 100%{background:#7468F8} }
-        @keyframes shimmer-blue {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-        .btn-animated-blue {
-          background: linear-gradient(90deg, #0095FF, #7468F8, #0095FF, #7468F8);
-          background-size: 300% 100%;
-          animation: shimmer-blue 3s ease-in-out infinite;
-        }
-        .text-animated-blue {
-          background: linear-gradient(90deg, #0095FF, #7468F8, #0095FF, #7468F8);
-          background-size: 300% 100%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: shimmer-blue 3s ease-in-out infinite;
-        }
+        @keyframes colorCycle { 0%{color:#7C4DFF} 33%{color:#E040FB} 66%{color:#FF4081} 100%{color:#7C4DFF} }
+        @keyframes taglineCycle { 0%{color:#FF4444} 50%{color:#FFD700} 100%{color:#FF4444} }
+        @keyframes btnGradient { 0%{background:#7C4DFF} 33%{background:#E040FB} 66%{background:#FF4081} 100%{background:#7C4DFF} }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes floatUp { 0%{opacity:0;transform:translateY(40px)} 100%{opacity:1;transform:translateY(0)} }
         .animate-color-cycle { animation: colorCycle 6s ease-in-out infinite; }
@@ -200,7 +183,7 @@ const LandingPage = () => {
             <HeroTypewriterSequence />
             <div className="mt-10 flex flex-wrap gap-4 float-up-d2">
               <Link to="/register">
-                <button className="btn-animated-blue px-10 py-4 rounded-full text-white font-bold text-sm tracking-[2px] flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#0095FF]/20" data-testid="hero-cta-btn">
+                <button className="bg-[#E53935] px-10 py-4 rounded-full text-white font-bold text-sm tracking-[2px] flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E53935]/20" data-testid="hero-cta-btn">
                   DISTRIBUTE MY MUSIC ONLINE <ArrowRight className="w-5 h-5" />
                 </button>
               </Link>
@@ -270,7 +253,7 @@ const LandingPage = () => {
             <p className="text-lg text-gray-400 leading-relaxed mb-10">
               As a pioneer in indie music distribution, Kalmori is dedicated to making music accessible while keeping artists in full control of their creative work.
             </p>
-            <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full btn-animated-blue text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#0095FF]/20" data-testid="see-plans-btn">
+            <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full bg-[#E040FB] text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="see-plans-btn">
               SEE OUR DISTRIBUTION PLANS <ArrowRight className="w-5 h-5" />
             </button>
           </div>
@@ -637,7 +620,7 @@ const LandingPage = () => {
               ))}
             </div>
             <div className="text-center">
-              <button onClick={() => navigate('/instrumentals')} className="px-10 py-4 rounded-full btn-animated-blue text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all" data-testid="browse-all-beats-btn">
+              <button onClick={() => navigate('/instrumentals')} className="px-10 py-4 rounded-full bg-[#E040FB] text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all" data-testid="browse-all-beats-btn">
                 BROWSE ALL BEATS <ArrowRight className="w-5 h-5" />
               </button>
             </div>
@@ -702,7 +685,7 @@ const LandingPage = () => {
           </h2>
           <p className="text-lg text-gray-300 mb-10 max-w-lg mx-auto">Join thousands of artists distributing their music worldwide with Kalmori.</p>
           <Link to="/register">
-            <button className="btn-animated-blue text-white px-12 py-5 rounded-full font-bold text-sm tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#0095FF]/30" data-testid="journey-cta-btn">
+            <button className="bg-[#E040FB] text-white px-12 py-5 rounded-full font-bold text-sm tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/30" data-testid="journey-cta-btn">
               GET STARTED FREE <ArrowRight className="w-5 h-5" />
             </button>
           </Link>
