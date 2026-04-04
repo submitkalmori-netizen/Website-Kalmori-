@@ -761,11 +761,16 @@ async def get_release_analytics(release_id: str, request: Request):
 async def get_trending(request: Request):
     user = await get_current_user(request)
     releases = await db.releases.find({"artist_id": user["id"]}, {"_id": 0}).to_list(100)
+    release_ids = [r["id"] for r in releases]
+    # Batch query all royalties in one call
+    royalties_pipeline = [
+        {"$match": {"release_id": {"$in": release_ids}}},
+        {"$group": {"_id": "$release_id", "total_streams": {"$sum": "$streams"}}}
+    ]
+    royalties_map = {r["_id"]: r["total_streams"] for r in await db.royalties.aggregate(royalties_pipeline).to_list(200)}
     trending = []
     for r in releases:
-        royalties = await db.royalties.find({"release_id": r["id"]}, {"_id": 0}).to_list(10)
-        streams = sum(roy.get("streams", 0) for roy in royalties)
-        # Simulate trending data for releases with distributions
+        streams = royalties_map.get(r["id"], 0)
         if r.get("status") == "distributed" or streams > 0:
             base_streams = max(streams, random.randint(100, 5000))
             week_change = round(random.uniform(-15, 45), 1)
