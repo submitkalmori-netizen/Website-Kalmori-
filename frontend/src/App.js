@@ -65,6 +65,7 @@ import CalendarPage from './pages/CalendarPage';
 import CollabHubPage from './pages/CollabHubPage';
 import MessagesPage from './pages/MessagesPage';
 import RoyaltySplitsPage from './pages/RoyaltySplitsPage';
+import PageBuilderPage from './pages/PageBuilderPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -317,6 +318,8 @@ const AppRouter = () => {
               <Route path="/admin/analytics-reports" element={<AdminRoute><AdminAnalyticsReportsPage /></AdminRoute>} />
               <Route path="/admin/contracts" element={<AdminRoute><AdminContractsPage /></AdminRoute>} />
               <Route path="/admin/payouts" element={<AdminRoute><AdminPayoutsPage /></AdminRoute>} />
+              <Route path="/admin/page-builder" element={<AdminRoute><PageBuilderPage /></AdminRoute>} />
+              <Route path="/admin/page-builder/:slug" element={<AdminRoute><PageBuilderPage /></AdminRoute>} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/agreement" element={<AgreementPage />} />
       <Route path="/pricing" element={<PricingPage />} />

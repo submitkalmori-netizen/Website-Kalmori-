@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PublicLayout from '../components/PublicLayout';
 import GlobalFooter from '../components/GlobalFooter';
+import { DynamicPageRenderer } from '../components/DynamicPageRenderer';
 import { ArrowRight, Check, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo, InstagramLogo, TwitterLogo, Envelope, MusicNote, MusicNotes, Playlist, Rocket, CheckCircle, Headset, Globe, CurrencyDollar, ShieldCheck, Star, Quotes, Play, Pause, Lightning, ChartLineUp, Brain, Users, Trophy, Target, ShareNetwork, ChatCircleDots, FileText, Waveform, HandCoins, Palette, QrCode, Copy } from '@phosphor-icons/react';
 import axios from 'axios';
+import { API } from '../App';
 
 // Hero images
 const heroSlideImages = [
@@ -111,9 +113,18 @@ const LandingPage = () => {
   const [zoomScale, setZoomScale] = useState(1);
   const [featuredBeats, setFeaturedBeats] = useState([]);
   const [playingBeatId, setPlayingBeatId] = useState(null);
+  const [customPage, setCustomPage] = useState(null);
+  const [checkingCustom, setCheckingCustom] = useState(true);
   const audioRef = React.useRef(null);
 
   useEffect(() => {
+    // Check for custom published layout first
+    fetch(`${API}/pages/landing`)
+      .then(r => r.json())
+      .then(data => { if (data.published && data.blocks?.length) setCustomPage(data); })
+      .catch(() => {})
+      .finally(() => setCheckingCustom(false));
+
     axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/beats?limit=4`)
       .then(res => setFeaturedBeats(res.data.beats?.slice(0, 4) || []))
       .catch(() => {});
@@ -149,6 +160,16 @@ const LandingPage = () => {
       return () => clearInterval(zoomInterval);
     } else setZoomScale(1);
   }, [currentSlide]);
+
+  // If a custom layout is published, render it instead of the default
+  if (!checkingCustom && customPage) {
+    return (
+      <PublicLayout>
+        <DynamicPageRenderer slug="landing" />
+        <GlobalFooter />
+      </PublicLayout>
+    );
+  }
 
   return (
     <PublicLayout>

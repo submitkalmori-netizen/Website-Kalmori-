@@ -3298,6 +3298,7 @@ from routes.label_routes import label_router
 from routes.messages_routes import messages_router
 from routes.royalty_routes import royalty_routes
 from routes.payouts_routes import payouts_router
+from routes.page_builder_routes import page_builder_router
 init_beats_routes(db, put_object, get_object, get_current_user, require_admin)
 app.include_router(ai_router)
 app.include_router(email_router)
@@ -3310,6 +3311,7 @@ app.include_router(label_router)
 app.include_router(messages_router)
 app.include_router(royalty_routes)
 app.include_router(payouts_router)
+app.include_router(page_builder_router)
 
 # CORS
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
