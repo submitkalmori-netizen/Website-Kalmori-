@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { Button } from './ui/button';
-import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check, UsersThree, Megaphone, HeartStraight, Lightning, CurrencyDollar, Trophy, Target, Buildings } from '@phosphor-icons/react';
+import { MusicNotes, House, Disc, ChartLineUp, Wallet, Gear, SignOut, List, X, Plus, ShieldCheck, SpotifyLogo, YoutubeLogo, ArrowLeft, ShoppingBag, Bell, Check, UsersThree, Megaphone, HeartStraight, Lightning, CurrencyDollar, Trophy, Target, Buildings, Lock, Crown } from '@phosphor-icons/react';
 import axios from 'axios';
 import { API } from '../App';
 
@@ -113,21 +113,30 @@ const DashboardLayout = ({ children }) => {
     } catch {}
   };
 
+  const plan = user?.plan || 'free';
+  const LOCKED = {
+    free: ['spotify_canvas', 'content_id', 'collaborations', 'presave', 'fan_analytics', 'leaderboard', 'goals', 'ai_strategy'],
+    rise: ['spotify_canvas', 'content_id', 'leaderboard', 'presave', 'ai_strategy'],
+    pro: [],
+  };
+  const locked = LOCKED[plan] || LOCKED.free;
+  const isLocked = (feat) => locked.includes(feat);
+
   const navItems = [
     { path: '/dashboard', icon: <House className="w-5 h-5" />, label: 'Dashboard' },
     ...(user?.user_role === 'label_producer' ? [{ path: '/label', icon: <Buildings className="w-5 h-5" />, label: 'Label Dashboard' }] : []),
     { path: '/releases', icon: <Disc className="w-5 h-5" />, label: 'Releases' },
     { path: '/analytics', icon: <ChartLineUp className="w-5 h-5" />, label: 'Analytics' },
     { path: '/wallet', icon: <Wallet className="w-5 h-5" />, label: 'Wallet' },
-    { path: '/spotify-canvas', icon: <SpotifyLogo className="w-5 h-5" />, label: 'Spotify Canvas' },
-    { path: '/content-id', icon: <YoutubeLogo className="w-5 h-5" />, label: 'Content ID' },
-    { path: '/purchases', icon: <ShoppingBag className="w-5 h-5" />, label: 'My Purchases' },
-    { path: '/collaborations', icon: <UsersThree className="w-5 h-5" />, label: 'Collaborations' },
-    { path: '/presave-manager', icon: <Megaphone className="w-5 h-5" />, label: 'Pre-Save' },
-    { path: '/fan-analytics', icon: <HeartStraight className="w-5 h-5" />, label: 'Fan Analytics' },
     { path: '/revenue', icon: <CurrencyDollar className="w-5 h-5" />, label: 'Revenue' },
-    { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, label: 'Leaderboard' },
-    { path: '/goals', icon: <Target className="w-5 h-5" />, label: 'Goals' },
+    { path: '/spotify-canvas', icon: <SpotifyLogo className="w-5 h-5" />, label: 'Spotify Canvas', feat: 'spotify_canvas' },
+    { path: '/content-id', icon: <YoutubeLogo className="w-5 h-5" />, label: 'Content ID', feat: 'content_id' },
+    { path: '/purchases', icon: <ShoppingBag className="w-5 h-5" />, label: 'My Purchases' },
+    { path: '/collaborations', icon: <UsersThree className="w-5 h-5" />, label: 'Collaborations', feat: 'collaborations' },
+    { path: '/presave-manager', icon: <Megaphone className="w-5 h-5" />, label: 'Pre-Save', feat: 'presave' },
+    { path: '/fan-analytics', icon: <HeartStraight className="w-5 h-5" />, label: 'Fan Analytics', feat: 'fan_analytics' },
+    { path: '/leaderboard', icon: <Trophy className="w-5 h-5" />, label: 'Leaderboard', feat: 'leaderboard' },
+    { path: '/goals', icon: <Target className="w-5 h-5" />, label: 'Goals', feat: 'goals' },
     { path: '/settings', icon: <Gear className="w-5 h-5" />, label: 'Settings' },
   ];
 
@@ -147,14 +156,23 @@ const DashboardLayout = ({ children }) => {
             <button className="lg:hidden p-2" onClick={() => setSidebarOpen(false)}><X className="w-5 h-5" /></button>
           </div>
 
-          <nav className="flex-1 p-4 space-y-1">
-            {navItems.map((item) => (
-              <Link key={item.path} to={item.path} onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all ${location.pathname === item.path ? 'bg-[#7C4DFF]/10 text-[#7C4DFF] border border-[#7C4DFF]/30' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
-                data-testid={`nav-${item.label.toLowerCase()}`}>
-                {item.icon} {item.label}
-              </Link>
-            ))}
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            {navItems.map((item) => {
+              const itemLocked = item.feat && isLocked(item.feat);
+              return (
+                <Link key={item.path} to={itemLocked ? '/pricing' : item.path} onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all ${
+                    itemLocked ? 'text-gray-600 hover:bg-white/[0.02]' :
+                    location.pathname === item.path ? 'bg-[#7C4DFF]/10 text-[#7C4DFF] border border-[#7C4DFF]/30' : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                  data-testid={`nav-${item.label.toLowerCase()}`}
+                  title={itemLocked ? `Upgrade to Pro to unlock ${item.label}` : ''}>
+                  {item.icon}
+                  <span className="flex-1">{item.label}</span>
+                  {itemLocked && <Lock className="w-3.5 h-3.5 text-gray-600" />}
+                </Link>
+              );
+            })}
             {user?.role === 'admin' && (
               <>
                 <div className="border-t border-white/10 my-3" />
@@ -173,10 +191,24 @@ const DashboardLayout = ({ children }) => {
                 {user?.name?.charAt(0).toUpperCase() || 'A'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.name || 'Artist'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{user?.name || 'Artist'}</p>
+                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full tracking-wider ${
+                    plan === 'pro' ? 'bg-[#FFD700]/15 text-[#FFD700]' :
+                    plan === 'rise' ? 'bg-[#7C4DFF]/15 text-[#7C4DFF]' :
+                    'bg-white/5 text-gray-500'
+                  }`}>{plan.toUpperCase()}</span>
+                </div>
                 <p className="text-xs text-gray-500 truncate">{user?.email}</p>
               </div>
             </div>
+            {plan !== 'pro' && (
+              <Link to="/pricing" className="block mx-4 mb-2 px-3 py-2 rounded-lg bg-gradient-to-r from-[#FFD700]/10 to-[#FFA500]/10 border border-[#FFD700]/20 text-center" data-testid="upgrade-cta">
+                <span className="text-[10px] font-bold text-[#FFD700] flex items-center justify-center gap-1">
+                  <Crown className="w-3 h-3" weight="fill" /> UPGRADE TO PRO — KEEP 100%
+                </span>
+              </Link>
+            )}
             <Button variant="ghost" className="w-full mt-2 text-gray-400 hover:text-white hover:bg-white/5 justify-start" onClick={handleLogout} data-testid="logout-btn">
               <SignOut className="w-5 h-5 mr-3" /> Sign Out
             </Button>

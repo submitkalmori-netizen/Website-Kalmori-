@@ -1468,14 +1468,52 @@ async def export_revenue_pdf(request: Request):
 
 # ============= SUBSCRIPTIONS =============
 SUBSCRIPTION_PLANS = {
-    "free": {"name": "Free", "price": 0, "revenue_share": 15, "features": ["Basic distribution", "Standard analytics"]},
-    "rise": {"name": "Rise", "price": 9.99, "revenue_share": 0, "features": ["All platforms", "Keep 100% royalties", "Priority support"]},
-    "pro": {"name": "Pro", "price": 19.99, "revenue_share": 0, "features": ["All Rise features", "YouTube Content ID", "Spotify Canvas", "Advanced analytics"]}
+    "free": {
+        "name": "Free", "price": 0, "revenue_share": 20,
+        "max_releases": 1,
+        "features": ["1 release per year", "150+ streaming platforms", "Free ISRC codes", "Basic analytics", "Standard support"],
+        "locked": ["ai_strategy", "revenue_export", "content_id", "spotify_canvas", "leaderboard", "goals", "presave", "fan_analytics", "collaborations"]
+    },
+    "rise": {
+        "name": "Rise", "price": 9.99, "revenue_share": 10,
+        "max_releases": -1,
+        "features": ["Unlimited releases", "150+ streaming platforms", "Free ISRC & UPC codes", "Advanced analytics", "Revenue dashboard", "Priority support"],
+        "locked": ["ai_strategy", "content_id", "spotify_canvas", "leaderboard", "presave"]
+    },
+    "pro": {
+        "name": "Pro", "price": 19.99, "revenue_share": 0,
+        "max_releases": -1,
+        "features": ["Everything in Rise", "Keep 100% royalties", "AI Release Strategy", "Revenue Export (PDF/CSV)", "YouTube Content ID", "Spotify Canvas", "Release Leaderboard", "Goal Tracking", "Pre-Save Campaigns", "Collaborations & Splits", "Fan Analytics", "Dedicated support"],
+        "locked": []
+    },
 }
 
 @api_router.get("/subscriptions/plans")
 async def get_subscription_plans():
     return SUBSCRIPTION_PLANS
+
+@api_router.get("/subscriptions/my-plan")
+async def get_my_plan(request: Request):
+    user = await get_current_user(request)
+    plan = user.get("plan", "free")
+    plan_info = SUBSCRIPTION_PLANS.get(plan, SUBSCRIPTION_PLANS["free"])
+    return {
+        "plan": plan,
+        "name": plan_info["name"],
+        "revenue_share": plan_info["revenue_share"],
+        "max_releases": plan_info.get("max_releases", 1),
+        "locked_features": plan_info.get("locked", []),
+    }
+
+def check_feature_access(user_plan: str, feature: str):
+    """Check if user's plan allows access to a feature"""
+    plan = SUBSCRIPTION_PLANS.get(user_plan, SUBSCRIPTION_PLANS["free"])
+    locked = plan.get("locked", [])
+    if feature in locked:
+        plan_names = {"ai_strategy": "Pro", "revenue_export": "Pro", "content_id": "Pro", "spotify_canvas": "Pro",
+                      "leaderboard": "Pro", "goals": "Pro", "presave": "Pro", "fan_analytics": "Pro", "collaborations": "Pro"}
+        required = plan_names.get(feature, "Pro")
+        raise HTTPException(status_code=403, detail=f"This feature requires the {required} plan. Upgrade at /pricing")
 
 @api_router.post("/subscriptions/upgrade")
 async def upgrade_subscription(plan: str, request: Request):

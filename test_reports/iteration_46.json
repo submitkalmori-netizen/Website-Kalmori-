@@ -1,0 +1,128 @@
+{
+  "summary": "Iteration 46 - Subscription Tier System Testing. All 25 backend tests passed. All frontend UI elements verified. 3 subscription plans (Free/Rise/Pro) with correct revenue shares (20%/10%/0%), prices ($0/$9.99/$19.99), and max_releases (1/-1/-1). Pricing page displays all plan cards, revenue comparison bars, feature checklists with check/X marks, BEST VALUE badge on Pro, and Why Go Pro section with $800/$900/$1,000 comparison. Sidebar shows lock icons for Free users on premium features, PRO badge for Pro users, and Upgrade CTA for non-Pro users. Locked items redirect to /pricing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dashboard",
+        "issues": ["Console warning about chart dimensions when page first loads - cosmetic only, does not affect functionality (same as previous iterations)"]
+      }
+    ]
+  },
+  "passed_tests": [
+    "Backend: GET /api/subscriptions/plans returns all 3 plans (free, rise, pro)",
+    "Backend: Free plan has revenue_share=20",
+    "Backend: Rise plan has revenue_share=10",
+    "Backend: Pro plan has revenue_share=0 (keep 100%)",
+    "Backend: Free plan has price=0",
+    "Backend: Rise plan has price=9.99",
+    "Backend: Pro plan has price=19.99",
+    "Backend: Free plan has max_releases=1",
+    "Backend: Rise plan has max_releases=-1 (unlimited)",
+    "Backend: Pro plan has max_releases=-1 (unlimited)",
+    "Backend: Free plan has locked features list",
+    "Backend: Pro plan has empty locked features list",
+    "Backend: GET /api/subscriptions/my-plan requires authentication",
+    "Backend: GET /api/subscriptions/my-plan returns current plan info",
+    "Backend: GET /api/subscriptions/my-plan returns max_releases field",
+    "Backend: Admin user on Pro plan has 0 revenue share and no locked features",
+    "Backend: Pro user can access AI strategy endpoint",
+    "Backend: Pro user can access leaderboard endpoint",
+    "Backend: Pro user can access goals endpoint",
+    "Backend: POST /api/subscriptions/upgrade requires authentication",
+    "Backend: POST /api/subscriptions/upgrade rejects invalid plan",
+    "Backend: POST /api/subscriptions/upgrade accepts valid plan",
+    "Backend: POST /api/subscriptions/checkout requires authentication",
+    "Backend: POST /api/subscriptions/checkout rejects invalid plan",
+    "Backend: POST /api/subscriptions/checkout for free plan returns no checkout URL",
+    "Frontend: Pricing page loads with data-testid='pricing-page'",
+    "Frontend: All 3 plan cards displayed (Free, Rise, Pro)",
+    "Frontend: Revenue comparison section with 80%/90%/100% bars",
+    "Frontend: Correct prices displayed ($9.99/mo Rise, $19.99/mo Pro)",
+    "Frontend: BEST VALUE badge on Pro plan",
+    "Frontend: Pro plan has gold border/highlight",
+    "Frontend: Feature checklists with green checks and red X marks",
+    "Frontend: Why Go Pro section with $800/$900/$1,000 comparison",
+    "Frontend: Pro user sees PRO badge in sidebar",
+    "Frontend: Pro user does not see Upgrade CTA",
+    "Frontend: Pro user has all features accessible (no lock icons)",
+    "Frontend: Free user sees FREE badge in sidebar",
+    "Frontend: Free user sees Upgrade CTA",
+    "Frontend: Free user sees lock icons on premium features",
+    "Frontend: Clicking locked item redirects to /pricing"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iteration46_subscriptions.py",
+    "/app/test_reports/pytest/pytest_results_iteration46.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SUBSCRIPTION_PLANS correctly defines 3 tiers with revenue_share (free=20, rise=10, pro=0)",
+    "max_releases field properly set (free=1, rise=-1, pro=-1)",
+    "check_feature_access helper raises 403 for locked features",
+    "Sidebar LOCKED array correctly maps features to plans",
+    "Lock icons appear for locked features and redirect to /pricing",
+    "Plan badge (FREE/RISE/PRO) displays next to username",
+    "Upgrade CTA only shows for non-Pro users",
+    "Pricing page uses PublicLayout (accessible without auth)",
+    "Revenue comparison bars visually show 80%/90%/100%",
+    "Feature checklists use Check/X icons with proper styling"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration46_subscriptions.py"
+  ],
+  "success_rate": {
+    "backend": "100% (25/25 passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin": {
+      "email": "admin@tunedrop.com",
+      "password": "Admin123!",
+      "role": "admin",
+      "plan": "pro"
+    },
+    "free_user": {
+      "email": "test_free_user_iter46@test.com",
+      "password": "Test123!",
+      "plan": "free"
+    }
+  },
+  "seed_data_creation": "Created test user test_free_user_iter46@test.com with free plan. Upgraded admin@tunedrop.com to pro plan.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 46 tested the subscription tier system. SUBSCRIPTION_PLANS in backend has 3 tiers: free (20% revenue share, 1 release/year), rise ($9.99/mo, 10% share, unlimited), pro ($19.99/mo, 0% share, unlimited). The /api/subscriptions/plans endpoint returns all plans. The /api/subscriptions/my-plan returns current user's plan with locked_features list. The pricing page (/pricing) is public and shows all 3 plan cards with revenue comparison bars, feature checklists, and Why Go Pro section. The sidebar in DashboardLayout shows lock icons for features not available on current plan, plan badge next to username, and Upgrade CTA for non-Pro users. Locked sidebar items redirect to /pricing.",
+  "mocked_apis": {
+    "has_mocked_apis": false,
+    "mocked_apis_list": []
+  },
+  "features_verified": {
+    "subscription_plans_api": {
+      "get_plans": "GET /api/subscriptions/plans returns all 3 plans with revenue_share, price, max_releases, features, locked",
+      "get_my_plan": "GET /api/subscriptions/my-plan returns current plan with locked_features",
+      "upgrade": "POST /api/subscriptions/upgrade?plan=X upgrades user plan",
+      "checkout": "POST /api/subscriptions/checkout creates Stripe checkout for paid plans",
+      "status": "Working"
+    },
+    "pricing_page": {
+      "plan_cards": "3 cards with Free/Rise/Pro, correct prices and revenue shares",
+      "revenue_comparison": "Visual bars showing 80%/90%/100% you keep",
+      "feature_checklists": "Green checks for included, red X for excluded",
+      "best_value_badge": "Pro plan has BEST VALUE badge and gold border",
+      "why_go_pro": "Section with $800/$900/$1,000 comparison",
+      "status": "Working"
+    },
+    "sidebar_feature_gating": {
+      "lock_icons": "Visible for locked features on Free/Rise plans",
+      "plan_badge": "FREE/RISE/PRO badge next to username",
+      "upgrade_cta": "Visible for non-Pro users",
+      "locked_redirect": "Clicking locked item redirects to /pricing",
+      "status": "Working"
+    }
+  }
+}
