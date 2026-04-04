@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PublicLayout from '../components/PublicLayout';
 import GlobalFooter from '../components/GlobalFooter';
-import { ArrowRight, Check, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo, InstagramLogo, Envelope, MusicNote, MusicNotes, Playlist, Rocket, CheckCircle, Headset, Globe, CurrencyDollar, ShieldCheck, Star, Quotes, Play, Pause, Lightning, ChartLineUp, Brain, Users, Trophy, Target, ShareNetwork } from '@phosphor-icons/react';
+import { ArrowRight, Check, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo, InstagramLogo, TwitterLogo, Envelope, MusicNote, MusicNotes, Playlist, Rocket, CheckCircle, Headset, Globe, CurrencyDollar, ShieldCheck, Star, Quotes, Play, Pause, Lightning, ChartLineUp, Brain, Users, Trophy, Target, ShareNetwork, ChatCircleDots, FileText, Waveform, HandCoins, Palette, QrCode, Copy } from '@phosphor-icons/react';
 import axios from 'axios';
 
 // Hero images
@@ -386,12 +386,15 @@ const LandingPage = () => {
               { icon: <Brain className="w-7 h-7" weight="fill" />, color: '#E040FB', title: 'AI Release Strategy', desc: 'Get AI-powered release plans with optimal timing, playlist targeting, and marketing recommendations tailored to your genre.' },
               { icon: <ChartLineUp className="w-7 h-7" weight="fill" />, color: '#1DB954', title: 'Real-Time Analytics', desc: 'Track streams, revenue, fan demographics, peak listening hours, and geographic data across all platforms in one dashboard.' },
               { icon: <CurrencyDollar className="w-7 h-7" weight="fill" />, color: '#FFD700', title: 'Revenue & Royalty Calculator', desc: 'See exactly what you earn per stream on each platform. Model different scenarios with our what-if royalty calculator.' },
+              { icon: <MusicNotes className="w-7 h-7" weight="fill" />, color: '#9C27B0', title: 'Beat Marketplace', desc: 'Browse, preview, and purchase professional instrumentals with 4-tier licensing. Producers sell beats with auto-generated contracts.' },
+              { icon: <FileText className="w-7 h-7" weight="fill" />, color: '#FF6B6B', title: 'Digital Contracts & E-Sign', desc: 'Every beat purchase generates a legally-binding PDF contract with e-signatures. Full admin tracking and audit trail.' },
+              { icon: <Waveform className="w-7 h-7" weight="fill" />, color: '#00BCD4', title: 'AI Audio Watermarking', desc: 'AI-generated voice tags automatically overlaid on beat previews. Clean versions unlock after purchase for full protection.' },
+              { icon: <ChatCircleDots className="w-7 h-7" weight="fill" />, color: '#2196F3', title: 'In-App Messaging', desc: 'Real-time chat with file sharing, audio messages, read receipts, and typing indicators. Collaborate without leaving the platform.' },
+              { icon: <HandCoins className="w-7 h-7" weight="fill" />, color: '#FF9800', title: 'Producer Royalty Splits', desc: 'Auto-calculated royalty splits between producers and artists on every beat stream and purchase. Credited directly to wallets.' },
+              { icon: <Users className="w-7 h-7" weight="fill" />, color: '#E040FB', title: 'Collaboration Hub', desc: 'Post collaboration opportunities, find vocalists, producers, and engineers. Build your network and create together.' },
+              { icon: <ShareNetwork className="w-7 h-7" weight="fill" />, color: '#00BCD4', title: 'Artist Public Profile', desc: 'Your shareable link-in-bio page with audio previews, custom theme colors, QR code sharing, and pre-save campaigns.' },
               { icon: <Trophy className="w-7 h-7" weight="fill" />, color: '#FF6B6B', title: 'Release Leaderboard', desc: 'See how your releases stack up. Track momentum, hot streaks, and compete with your own catalog.' },
               { icon: <Target className="w-7 h-7" weight="fill" />, color: '#7C4DFF', title: 'Goal Tracking & Milestones', desc: 'Set stream goals, revenue targets, and geographic reach milestones. Watch your progress and celebrate achievements.' },
-              { icon: <ShareNetwork className="w-7 h-7" weight="fill" />, color: '#00BCD4', title: 'Artist Public Profile', desc: 'Your shareable link-in-bio page. Show your music, social links, and pre-save campaigns — all in one beautiful page.' },
-              { icon: <Users className="w-7 h-7" weight="fill" />, color: '#FF9800', title: 'Fan Analytics', desc: 'Understand your audience: listener growth, top countries, platform engagement, and optimal release windows.' },
-              { icon: <Lightning className="w-7 h-7" weight="fill" />, color: '#E040FB', title: 'AI Smart Notifications', desc: 'Get intelligent alerts about trending moments, streaming spikes, and actionable insights delivered to you.' },
-              { icon: <MusicNotes className="w-7 h-7" weight="fill" />, color: '#9C27B0', title: 'Beat Marketplace', desc: 'Browse and purchase professional instrumentals. Producers can sell beats directly on the platform.' },
             ].map((f, i) => (
               <div key={i} className="bg-[#111] rounded-2xl p-7 border border-white/5 hover:border-white/15 transition-all group" data-testid={`feature-card-${i}`}>
                 <div className="w-12 h-12 rounded-xl mb-5 flex items-center justify-center group-hover:scale-110 transition-transform"
@@ -402,6 +405,166 @@ const LandingPage = () => {
                 <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== PLATFORM HIGHLIGHTS — Detailed Feature Showcase ===== */}
+      <section className="py-24 px-6 bg-black" data-testid="highlights-section">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-xs font-bold text-[#E040FB] tracking-[4px] mb-4">WHAT SETS US APART</p>
+            <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white">
+              Features That <AnimatedColorText>Actually Matter</AnimatedColorText>
+            </h2>
+          </div>
+
+          {/* Highlight 1: Beat Marketplace */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-24">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#9C27B0]/10 border border-[#9C27B0]/30 rounded-full text-[#9C27B0] text-xs font-bold mb-4">
+                <MusicNotes className="w-3.5 h-3.5" weight="fill" /> BEAT MARKETPLACE
+              </div>
+              <h3 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight">
+                Buy & Sell Beats with<br/><span className="text-[#E040FB]">Full Legal Protection</span>
+              </h3>
+              <p className="text-base text-gray-400 leading-relaxed mb-6">
+                Our marketplace handles the entire beat licensing workflow — from preview to purchase. Every transaction generates a legally-binding PDF contract with digital signatures, auto-calculated royalty splits, and AI-powered audio watermarks to protect your work.
+              </p>
+              <div className="space-y-3">
+                {['4-tier licensing (Basic, Premium, Exclusive, Unlimited)', 'AI-generated voice tag watermarks on previews', 'Auto PDF contracts with e-signatures', 'Producer royalty splits on every stream & sale'].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-[#E040FB] flex-shrink-0" weight="fill" />
+                    <p className="text-sm text-gray-300">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="relative">
+              <div className="rounded-2xl overflow-hidden border border-white/10 bg-[#111] p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#9C27B0] to-[#E040FB] flex items-center justify-center"><MusicNote className="w-7 h-7 text-white" weight="fill" /></div>
+                  <div>
+                    <p className="text-white font-bold">Midnight Vibes</p>
+                    <p className="text-xs text-gray-500">120 BPM &middot; Am &middot; Hip-Hop/R&B</p>
+                  </div>
+                  <div className="ml-auto text-right">
+                    <p className="text-[#FFD700] font-bold text-lg">$29.99</p>
+                    <p className="text-[10px] text-gray-500">Basic Lease</p>
+                  </div>
+                </div>
+                <div className="h-12 bg-[#0A0A0A] rounded-lg flex items-center px-4 gap-1 mb-4">
+                  {[...Array(40)].map((_, i) => (
+                    <div key={i} className="w-1 bg-[#E040FB] rounded-full" style={{ height: `${6 + Math.random() * 26}px`, opacity: 0.3 + Math.random() * 0.7 }} />
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#0A0A0A] rounded-lg p-3 border border-white/5">
+                    <FileText className="w-5 h-5 text-[#FF6B6B] mb-1" weight="fill" />
+                    <p className="text-xs font-bold text-white">Auto Contract</p>
+                    <p className="text-[10px] text-gray-500">PDF + E-Sign</p>
+                  </div>
+                  <div className="bg-[#0A0A0A] rounded-lg p-3 border border-white/5">
+                    <Waveform className="w-5 h-5 text-[#00BCD4] mb-1" weight="fill" />
+                    <p className="text-xs font-bold text-white">Voice Tag</p>
+                    <p className="text-[10px] text-gray-500">AI Watermark</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Highlight 2: Collaboration + Messaging */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-24">
+            <div className="order-2 lg:order-1">
+              <div className="rounded-2xl overflow-hidden border border-white/10 bg-[#111] p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2196F3] to-[#00BCD4] flex items-center justify-center text-white text-xs font-bold">JT</div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-white">Jay Turner</p>
+                    <p className="text-[10px] text-[#1DB954]">Online</p>
+                  </div>
+                </div>
+                <div className="space-y-3 mb-4">
+                  <div className="flex justify-start"><div className="bg-[#1a1a1a] rounded-2xl rounded-tl-sm px-4 py-2 max-w-[75%]"><p className="text-xs text-gray-300">Hey, I heard your latest beat. Let's collab!</p><p className="text-[9px] text-gray-600 mt-1">2:34 PM</p></div></div>
+                  <div className="flex justify-end"><div className="bg-[#7C4DFF] rounded-2xl rounded-tr-sm px-4 py-2 max-w-[75%]"><p className="text-xs text-white">Definitely! I'll send the stems now</p><p className="text-[9px] text-white/50 mt-1">2:35 PM &middot; Read</p></div></div>
+                  <div className="flex justify-start"><div className="bg-[#1a1a1a] rounded-2xl rounded-tl-sm px-4 py-2"><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-[#E040FB]/20 flex items-center justify-center"><MusicNote className="w-4 h-4 text-[#E040FB]" weight="fill" /></div><div><p className="text-xs text-white font-medium">collab_track.wav</p><p className="text-[9px] text-gray-500">3.2 MB</p></div></div></div></div>
+                </div>
+                <div className="bg-[#0A0A0A] rounded-full px-4 py-2 flex items-center gap-2">
+                  <span className="text-xs text-gray-500 flex-1">Type a message...</span>
+                  <div className="w-6 h-6 rounded-full bg-[#7C4DFF] flex items-center justify-center"><ArrowRight className="w-3 h-3 text-white" /></div>
+                </div>
+              </div>
+            </div>
+            <div className="order-1 lg:order-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#2196F3]/10 border border-[#2196F3]/30 rounded-full text-[#2196F3] text-xs font-bold mb-4">
+                <ChatCircleDots className="w-3.5 h-3.5" weight="fill" /> COLLABORATION
+              </div>
+              <h3 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight">
+                Connect, Chat &<br/><span className="text-[#2196F3]">Create Together</span>
+              </h3>
+              <p className="text-base text-gray-400 leading-relaxed mb-6">
+                Find collaborators in the Collab Hub, then work together seamlessly with built-in real-time messaging. Share files, audio clips, and ideas — all without leaving Kalmori.
+              </p>
+              <div className="space-y-3">
+                {['Real-time chat with read receipts & typing indicators', 'File and audio sharing in conversations', 'Collab Hub to find producers, vocalists & engineers', 'Direct messaging from any profile'].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-[#2196F3] flex-shrink-0" weight="fill" />
+                    <p className="text-sm text-gray-300">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Highlight 3: Artist Profile */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#00BCD4]/10 border border-[#00BCD4]/30 rounded-full text-[#00BCD4] text-xs font-bold mb-4">
+                <Palette className="w-3.5 h-3.5" weight="fill" /> ARTIST PROFILES
+              </div>
+              <h3 className="text-3xl sm:text-4xl font-black text-white mb-4 leading-tight">
+                Your Link-in-Bio,<br/><span className="text-[#00BCD4]">Powered by Music</span>
+              </h3>
+              <p className="text-base text-gray-400 leading-relaxed mb-6">
+                Every artist on Kalmori gets a beautiful, shareable public profile page. Fans can preview your music, pre-save upcoming releases, and find all your social links in one place. Customize your theme color and share via QR code.
+              </p>
+              <div className="space-y-3">
+                {['Inline audio previews for all releases', 'Custom theme colors to match your brand', 'QR code generator for merch & social', 'Pre-save campaigns to build hype'].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-[#00BCD4] flex-shrink-0" weight="fill" />
+                    <p className="text-sm text-gray-300">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="relative">
+              <div className="rounded-2xl overflow-hidden border border-white/10 bg-[#111] p-6 max-w-xs mx-auto">
+                <div className="flex flex-col items-center text-center mb-4">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#00BCD4] to-[#E040FB] flex items-center justify-center text-white text-2xl font-extrabold mb-3">A</div>
+                  <p className="text-lg font-extrabold text-white">Artist Name</p>
+                  <p className="text-[10px] uppercase tracking-[0.15em] text-gray-500">Hip-Hop &middot; Atlanta</p>
+                </div>
+                <div className="flex justify-center gap-2 mb-4">
+                  {[SpotifyLogo, InstagramLogo, TwitterLogo].map((Icon, i) => (
+                    <div key={i} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center"><Icon className="w-4 h-4 text-white/60" weight="fill" /></div>
+                  ))}
+                </div>
+                <div className="space-y-2 mb-4">
+                  {['Latest Single', 'Album Drop'].map((t, i) => (
+                    <div key={i} className="flex items-center gap-3 bg-[#0A0A0A] rounded-xl p-2.5">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#7C4DFF]/30 to-[#E040FB]/30 flex items-center justify-center flex-shrink-0"><MusicNote className="w-4 h-4 text-[#E040FB]" weight="fill" /></div>
+                      <div className="flex-1 min-w-0"><p className="text-xs font-semibold text-white truncate">{t}</p><div className="h-1 bg-white/10 rounded-full mt-1 overflow-hidden"><div className="h-full bg-[#00BCD4] rounded-full" style={{ width: `${30 + i * 25}%` }} /></div></div>
+                      <Play className="w-3.5 h-3.5 text-white/40" weight="fill" />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 rounded-full text-[10px] text-white/60"><Copy className="w-3 h-3" /> Share</div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#00BCD4]/10 border border-[#00BCD4]/30 rounded-full text-[10px] text-[#00BCD4]"><QrCode className="w-3 h-3" /> QR Code</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

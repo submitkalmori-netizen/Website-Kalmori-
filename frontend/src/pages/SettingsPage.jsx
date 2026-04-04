@@ -64,12 +64,15 @@ const SettingsPage = () => {
   const [slugInput, setSlugInput] = useState('');
   const [savingSlug, setSavingSlug] = useState(false);
   const [slugCopied, setSlugCopied] = useState(false);
+  const [themeColor, setThemeColor] = useState('#7C4DFF');
+  const [savingTheme, setSavingTheme] = useState(false);
 
   useEffect(() => {
     fetchData();
     fetchNotifPrefs();
     fetchSpotifyStatus();
     fetchSlug();
+    fetchTheme();
   }, []);
 
   const fetchSpotifyStatus = async () => {
@@ -109,6 +112,34 @@ const SettingsPage = () => {
       setTimeout(() => setSlugCopied(false), 2000);
       toast.success('Profile link copied!');
     }).catch(() => toast.error('Failed to copy'));
+  };
+
+  const fetchTheme = async () => {
+    try {
+      const res = await axios.get(`${API}/artist/profile/theme`, { withCredentials: true });
+      setThemeColor(res.data.theme_color || '#7C4DFF');
+    } catch {}
+  };
+
+  const handleSaveTheme = async (color) => {
+    setThemeColor(color);
+    setSavingTheme(true);
+    try {
+      await axios.put(`${API}/artist/profile/theme`, { theme_color: color }, { withCredentials: true });
+      toast.success('Theme color updated!');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to save theme');
+    } finally {
+      setSavingTheme(false);
+    }
+  };
+
+  const handleDownloadQR = () => {
+    if (!slug) return;
+    const a = document.createElement('a');
+    a.href = `${API}/artist/${slug}/qr`;
+    a.download = `${slug}-qr.png`;
+    a.click();
   };
 
   const fetchNotifPrefs = async () => {
@@ -639,17 +670,94 @@ const SettingsPage = () => {
                   { label: 'Bio', done: !!profile.bio },
                   { label: 'Genre & country', done: !!profile.genre },
                   { label: 'Social links (Spotify, Instagram, etc.)', done: !!(profile.spotify_url || profile.instagram || profile.twitter) },
-                  { label: 'Released music with cover art', done: true },
+                  { label: 'Released music with audio previews', done: true },
                   { label: 'Pre-save campaigns', done: true },
+                  { label: 'Custom theme color', done: themeColor !== '#7C4DFF' },
+                  { label: 'QR code for sharing', done: !!slug },
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 text-sm">
                     <CheckCircle className={`w-4 h-4 flex-shrink-0 ${item.done ? 'text-[#22C55E]' : 'text-white/20'}`} weight={item.done ? 'fill' : 'regular'} />
                     <span className={item.done ? 'text-white/80' : 'text-white/40'}>{item.label}</span>
-                    {!item.done && <span className="text-[10px] text-[#FFD700] bg-[#FFD700]/10 px-2 py-0.5 rounded-full">Add in Profile tab</span>}
+                    {!item.done && <span className="text-[10px] text-[#FFD700] bg-[#FFD700]/10 px-2 py-0.5 rounded-full">Customize below</span>}
                   </li>
                 ))}
               </ul>
             </div>
+
+            {/* Theme Color Picker */}
+            <div className="bg-[#141414] border border-white/10 rounded-lg p-6" data-testid="theme-color-section">
+              <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                <Gear className="w-4 h-4 text-[#E040FB]" />
+                Profile Theme Color
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">Choose a color that represents your brand. It will style your public profile page.</p>
+              <div className="flex flex-wrap gap-3 mb-4">
+                {[
+                  { color: '#7C4DFF', name: 'Violet' },
+                  { color: '#E040FB', name: 'Magenta' },
+                  { color: '#FF4081', name: 'Pink' },
+                  { color: '#FF5722', name: 'Orange' },
+                  { color: '#FFD700', name: 'Gold' },
+                  { color: '#1DB954', name: 'Green' },
+                  { color: '#00BCD4', name: 'Cyan' },
+                  { color: '#2196F3', name: 'Blue' },
+                  { color: '#E53935', name: 'Red' },
+                  { color: '#9C27B0', name: 'Purple' },
+                ].map((t) => (
+                  <button
+                    key={t.color}
+                    onClick={() => handleSaveTheme(t.color)}
+                    className={`w-10 h-10 rounded-full border-2 transition-all hover:scale-110 ${themeColor === t.color ? 'border-white scale-110 ring-2 ring-white/20' : 'border-transparent'}`}
+                    style={{ backgroundColor: t.color }}
+                    title={t.name}
+                    data-testid={`theme-color-${t.name.toLowerCase()}`}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-white/50">Custom:</label>
+                <input
+                  type="color"
+                  value={themeColor}
+                  onChange={(e) => handleSaveTheme(e.target.value)}
+                  className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0"
+                  data-testid="custom-color-picker"
+                />
+                <span className="text-xs text-white/40 font-mono">{themeColor}</span>
+                {savingTheme && <span className="text-xs text-white/30">Saving...</span>}
+              </div>
+            </div>
+
+            {/* QR Code */}
+            {slug && (
+              <div className="bg-[#141414] border border-white/10 rounded-lg p-6" data-testid="qr-code-section">
+                <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                  <ShareNetwork className="w-4 h-4 text-[#7C4DFF]" />
+                  QR Code
+                </h3>
+                <p className="text-xs text-gray-400 mb-4">Share your profile with a scannable QR code. Perfect for flyers, merch, and social media.</p>
+                <div className="flex items-center gap-6">
+                  <div className="bg-[#0A0A0A] rounded-xl p-3 border border-white/5">
+                    <img
+                      src={`${API}/artist/${slug}/qr`}
+                      alt="QR Code"
+                      className="w-28 h-28"
+                      data-testid="settings-qr-img"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleDownloadQR}
+                      className="bg-[#7C4DFF] hover:bg-[#7C4DFF]/80 text-white text-sm"
+                      data-testid="download-qr-settings-btn"
+                    >
+                      Download PNG
+                    </Button>
+                    <p className="text-[10px] text-white/30">High-res, dark-themed QR</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

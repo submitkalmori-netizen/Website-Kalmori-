@@ -2056,195 +2056,7 @@ async def respond_to_invite(invite_id: str, request: Request):
     return {"message": f"Invite {new_status}"}
 
 # ============= IN-APP MESSAGING =============
-
-@api_router.get("/messages/conversations")
-async def list_conversations(request: Request):
-    """List all conversations for the current user (only from accepted collab invites)"""
-    user = await get_current_user(request)
-    uid = user["id"]
-    convos = await db.conversations.find(
-        {"participants": uid}, {"_id": 0}
-    ).sort("updated_at", -1).to_list(50)
-    # Attach last message and unread count per conversation
-    for c in convos:
-        last_msg = await db.messages.find_one(
-            {"conversation_id": c["id"]}, {"_id": 0},
-            sort=[("created_at", -1)]
-        )
-        c["last_message"] = last_msg
-        unread = await db.messages.count_documents(
-            {"conversation_id": c["id"], "sender_id": {"$ne": uid}, "read": False}
-        )
-        c["unread_count"] = unread
-        # Resolve the other participant's name
-        other_id = [p for p in c["participants"] if p != uid]
-        if other_id:
-            other_user = await db.users.find_one({"id": other_id[0]}, {"_id": 0, "artist_name": 1, "name": 1, "email": 1})
-            c["other_user"] = {"artist_name": (other_user or {}).get("artist_name") or (other_user or {}).get("name", "Unknown"), "email": (other_user or {}).get("email", "")}
-        else:
-            c["other_user"] = {"artist_name": "Unknown", "email": ""}
-    return convos
-
-@api_router.get("/messages/unread/count")
-async def unread_message_count(request: Request):
-    """Get total unread message count for the current user"""
-    user = await get_current_user(request)
-    convos = await db.conversations.find({"participants": user["id"]}, {"id": 1, "_id": 0}).to_list(100)
-    convo_ids = [c["id"] for c in convos]
-    if not convo_ids:
-        return {"unread": 0}
-    count = await db.messages.count_documents(
-        {"conversation_id": {"$in": convo_ids}, "sender_id": {"$ne": user["id"]}, "read": False}
-    )
-    return {"unread": count}
-
-@api_router.get("/messages/{conversation_id}")
-async def get_messages(conversation_id: str, request: Request):
-    """Get messages for a conversation (only if user is a participant)"""
-    user = await get_current_user(request)
-    convo = await db.conversations.find_one({"id": conversation_id, "participants": user["id"]})
-    if not convo:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    messages = await db.messages.find(
-        {"conversation_id": conversation_id}, {"_id": 0}
-    ).sort("created_at", 1).to_list(200)
-    # Mark messages from other user as read with timestamp
-    now = datetime.now(timezone.utc).isoformat()
-    await db.messages.update_many(
-        {"conversation_id": conversation_id, "sender_id": {"$ne": user["id"]}, "read": False},
-        {"$set": {"read": True, "read_at": now}}
-    )
-    # Refresh read status for the messages we just marked
-    for m in messages:
-        if m.get("sender_id") != user["id"] and not m.get("read"):
-            m["read"] = True
-            m["read_at"] = now
-    # Get typing status of other participants
-    typing_users = []
-    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=4)).isoformat()
-    other_ids = [p for p in convo["participants"] if p != user["id"]]
-    for oid in other_ids:
-        ts = await db.typing_status.find_one({"conversation_id": conversation_id, "user_id": oid, "timestamp": {"$gt": cutoff}})
-        if ts:
-            typing_users.append(oid)
-    return {"messages": messages, "typing": typing_users}
-
-@api_router.post("/messages/{conversation_id}")
-async def send_message(conversation_id: str, request: Request):
-    """Send a message in a conversation (only if user is a participant)"""
-    user = await get_current_user(request)
-    convo = await db.conversations.find_one({"id": conversation_id, "participants": user["id"]})
-    if not convo:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    body = await request.json()
-    text = body.get("text", "").strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="Message cannot be empty")
-    msg = {
-        "id": f"msg_{uuid.uuid4().hex[:12]}",
-        "conversation_id": conversation_id,
-        "sender_id": user["id"],
-        "sender_name": user.get("artist_name") or user.get("name", ""),
-        "text": text,
-        "read": False,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.messages.insert_one(msg)
-    msg.pop("_id", None)
-    await db.conversations.update_one(
-        {"id": conversation_id},
-        {"$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
-    )
-    # Send notification to the other participant
-    other_ids = [p for p in convo["participants"] if p != user["id"]]
-    for oid in other_ids:
-        await db.notifications.insert_one({
-            "id": f"notif_{uuid.uuid4().hex[:12]}", "user_id": oid,
-            "type": "new_message",
-            "message": f"New message from {user.get('artist_name', 'Someone')}",
-            "read": False, "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-    return msg
-
-@api_router.post("/messages/{conversation_id}/upload")
-async def upload_chat_file(conversation_id: str, request: Request, file: UploadFile = File(...)):
-    """Upload a file/audio in a chat conversation"""
-    user = await get_current_user(request)
-    convo = await db.conversations.find_one({"id": conversation_id, "participants": user["id"]})
-    if not convo:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    content = await file.read()
-    max_size = 50 * 1024 * 1024  # 50MB
-    if len(content) > max_size:
-        raise HTTPException(status_code=400, detail="File too large. Max 50MB.")
-    ext = file.filename.split(".")[-1].lower() if "." in file.filename else "bin"
-    ct = file.content_type or "application/octet-stream"
-    file_type = "audio" if ct.startswith("audio/") else "image" if ct.startswith("image/") else "file"
-    path = f"{APP_NAME}/chat/{conversation_id}/{uuid.uuid4().hex[:12]}.{ext}"
-    result = put_object(path, content, ct)
-    file_url = result.get("path") or result.get("url") or path
-    msg = {
-        "id": f"msg_{uuid.uuid4().hex[:12]}",
-        "conversation_id": conversation_id,
-        "sender_id": user["id"],
-        "sender_name": user.get("artist_name") or user.get("name", ""),
-        "text": file.filename,
-        "file_url": file_url,
-        "file_name": file.filename,
-        "file_type": file_type,
-        "file_size": len(content),
-        "read": False,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.messages.insert_one(msg)
-    msg.pop("_id", None)
-    await db.conversations.update_one(
-        {"id": conversation_id},
-        {"$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
-    )
-    other_ids = [p for p in convo["participants"] if p != user["id"]]
-    for oid in other_ids:
-        await db.notifications.insert_one({
-            "id": f"notif_{uuid.uuid4().hex[:12]}", "user_id": oid,
-            "type": "new_message",
-            "message": f"{user.get('artist_name', 'Someone')} shared a file",
-            "read": False, "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-    return msg
-
-@api_router.get("/messages/file/{file_path:path}")
-async def get_chat_file(file_path: str, request: Request):
-    """Download a chat file (validates user is a participant)"""
-    user = await get_current_user(request)
-    # Extract conversation_id from path (format: APP_NAME/chat/{convo_id}/filename)
-    parts = file_path.split("/")
-    convo_id = None
-    for i, p in enumerate(parts):
-        if p == "chat" and i + 1 < len(parts):
-            convo_id = parts[i + 1]
-            break
-    if convo_id:
-        convo = await db.conversations.find_one({"id": convo_id, "participants": user["id"]})
-        if not convo:
-            raise HTTPException(status_code=403, detail="Access denied")
-    data, content_type = get_object(file_path)
-    fname = parts[-1] if parts else "file"
-    return StreamingResponse(BytesIO(data), media_type=content_type,
-        headers={"Content-Disposition": f'inline; filename="{fname}"'})
-
-@api_router.post("/messages/{conversation_id}/typing")
-async def set_typing(conversation_id: str, request: Request):
-    """Signal that the user is typing in a conversation"""
-    user = await get_current_user(request)
-    convo = await db.conversations.find_one({"id": conversation_id, "participants": user["id"]})
-    if not convo:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    await db.typing_status.update_one(
-        {"conversation_id": conversation_id, "user_id": user["id"]},
-        {"$set": {"timestamp": datetime.now(timezone.utc).isoformat()}},
-        upsert=True
-    )
-    return {"ok": True}
+# Moved to routes/messages_routes.py
 
 # ============= RELEASE CALENDAR =============
 
@@ -2837,356 +2649,10 @@ async def send_receipt(request: Request):
         return {"message": "Receipt saved (email delivery pending)", "receipt_id": receipt_id}
 
 # ============= PRODUCER ROYALTY SPLITS =============
-
-DEFAULT_SPLITS = {
-    "basic_lease": {"producer": 50, "artist": 50},
-    "premium_lease": {"producer": 40, "artist": 60},
-    "unlimited_lease": {"producer": 30, "artist": 70},
-    "exclusive": {"producer": 0, "artist": 100},
-}
-
-@api_router.get("/royalty-splits")
-async def get_royalty_splits(request: Request):
-    """Get all active royalty splits for the current user (as producer or artist)"""
-    user = await get_current_user(request)
-    uid = user["id"]
-    # Find splits where user is producer or artist
-    splits = await db.royalty_splits.find(
-        {"$or": [{"producer_id": uid}, {"artist_id": uid}]}, {"_id": 0}
-    ).sort("created_at", -1).to_list(100)
-    # Calculate earnings for each split
-    for s in splits:
-        earnings = await db.split_earnings.find(
-            {"split_id": s["id"]}, {"_id": 0}
-        ).sort("period", -1).to_list(12)
-        s["earnings_history"] = earnings
-        s["total_earned"] = round(sum(e.get("amount", 0) for e in earnings if e.get("recipient_id") == uid), 2)
-        s["is_producer"] = s["producer_id"] == uid
-    return {"splits": splits}
-
-@api_router.get("/royalty-splits/summary")
-async def get_splits_summary(request: Request):
-    """Dashboard summary of royalty split earnings"""
-    user = await get_current_user(request)
-    uid = user["id"]
-    splits = await db.royalty_splits.find(
-        {"$or": [{"producer_id": uid}, {"artist_id": uid}]}, {"_id": 0}
-    ).to_list(100)
-    total_as_producer = 0.0
-    total_as_artist = 0.0
-    active_splits = 0
-    for s in splits:
-        if s.get("status") == "active":
-            active_splits += 1
-        all_earnings = await db.split_earnings.find({"split_id": s["id"], "recipient_id": uid}, {"_id": 0}).to_list(100)
-        earned = sum(e.get("amount", 0) for e in all_earnings)
-        if s["producer_id"] == uid:
-            total_as_producer += earned
-        else:
-            total_as_artist += earned
-    return {
-        "active_splits": active_splits,
-        "total_as_producer": round(total_as_producer, 2),
-        "total_as_artist": round(total_as_artist, 2),
-        "total_earned": round(total_as_producer + total_as_artist, 2),
-    }
-
-@api_router.post("/royalty-splits/calculate")
-async def calculate_and_distribute(request: Request):
-    """Admin: Calculate and distribute royalty splits for all active beat licenses"""
-    await require_admin(request)
-    now = datetime.now(timezone.utc)
-    period = now.strftime("%Y-%m")
-    active_splits = await db.royalty_splits.find({"status": "active"}, {"_id": 0}).to_list(500)
-    distributions = []
-    for split in active_splits:
-        # Get streaming revenue for the beat's releases in this period
-        beat_id = split.get("beat_id")
-        artist_id = split.get("artist_id")
-        if not beat_id or not artist_id:
-            continue
-        # Find stream events for the artist that use this beat
-        month_prefix = period
-        pipeline = [
-            {"$match": {"artist_id": artist_id, "timestamp": {"$regex": f"^{month_prefix}"}}},
-            {"$group": {"_id": None, "streams": {"$sum": 1}, "revenue": {"$sum": "$revenue"}}}
-        ]
-        result = await db.stream_events.aggregate(pipeline).to_list(1)
-        if not result:
-            continue
-        total_revenue = result[0].get("revenue", 0)
-        total_streams = result[0].get("streams", 0)
-        if total_revenue <= 0:
-            continue
-        # Calculate splits
-        producer_pct = split.get("producer_split", 50)
-        artist_pct = split.get("artist_split", 50)
-        producer_amount = round(total_revenue * producer_pct / 100, 2)
-        artist_amount = round(total_revenue * artist_pct / 100, 2)
-        # Check if already distributed for this period
-        existing = await db.split_earnings.find_one({"split_id": split["id"], "period": period})
-        if existing:
-            continue
-        # Create earnings records for both parties
-        for recipient_id, amount, role in [
-            (split["producer_id"], producer_amount, "producer"),
-            (split["artist_id"], artist_amount, "artist"),
-        ]:
-            earning = {
-                "id": f"se_{uuid.uuid4().hex[:12]}",
-                "split_id": split["id"],
-                "recipient_id": recipient_id,
-                "beat_id": beat_id,
-                "role": role,
-                "period": period,
-                "streams": total_streams,
-                "gross_revenue": total_revenue,
-                "split_percentage": producer_pct if role == "producer" else artist_pct,
-                "amount": amount,
-                "status": "calculated",
-                "created_at": now.isoformat(),
-            }
-            await db.split_earnings.insert_one(earning)
-            earning.pop("_id", None)
-            # Credit wallet
-            await db.wallets.update_one(
-                {"user_id": recipient_id},
-                {"$inc": {"balance": amount, "total_earnings": amount}},
-                upsert=True
-            )
-        distributions.append({
-            "split_id": split["id"], "beat": split.get("beat_title", ""),
-            "period": period, "revenue": total_revenue, "streams": total_streams,
-            "producer_payout": producer_amount, "artist_payout": artist_amount,
-        })
-    return {"period": period, "distributions": distributions, "total_processed": len(distributions)}
-
-@api_router.get("/admin/royalty-splits")
-async def admin_list_splits(request: Request):
-    """Admin: View all royalty splits"""
-    await require_admin(request)
-    splits = await db.royalty_splits.find({}, {"_id": 0}).sort("created_at", -1).to_list(200)
-    for s in splits:
-        earnings = await db.split_earnings.find({"split_id": s["id"]}, {"_id": 0}).to_list(50)
-        s["total_distributed"] = round(sum(e.get("amount", 0) for e in earnings), 2)
-        s["periods_distributed"] = len(set(e.get("period") for e in earnings))
-    return {"splits": splits}
-
-@api_router.put("/admin/royalty-splits/{split_id}")
-async def admin_update_split(split_id: str, request: Request):
-    """Admin: Update a royalty split configuration"""
-    await require_admin(request)
-    body = await request.json()
-    update = {}
-    if "producer_split" in body:
-        update["producer_split"] = body["producer_split"]
-        update["artist_split"] = 100 - body["producer_split"]
-    if "status" in body:
-        update["status"] = body["status"]
-    if update:
-        update["updated_at"] = datetime.now(timezone.utc).isoformat()
-        await db.royalty_splits.update_one({"id": split_id}, {"$set": update})
-    split = await db.royalty_splits.find_one({"id": split_id}, {"_id": 0})
-    return split
+# Moved to routes/royalty_routes.py
 
 # ============= ADMIN PAYOUT DASHBOARD =============
-
-@api_router.get("/admin/payouts")
-async def admin_list_payouts(request: Request, status: str = None):
-    """Admin: List all withdrawal requests with user details"""
-    await require_admin(request)
-    query = {} if not status or status == "all" else {"status": status}
-    withdrawals = await db.withdrawals.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
-    for w in withdrawals:
-        user = await db.users.find_one({"id": w.get("user_id")}, {"_id": 0, "email": 1, "artist_name": 1, "name": 1})
-        w["user_email"] = (user or {}).get("email", "")
-        w["user_name"] = (user or {}).get("artist_name") or (user or {}).get("name", "Unknown")
-    return {"withdrawals": withdrawals}
-
-@api_router.get("/admin/payouts/summary")
-async def admin_payouts_summary(request: Request):
-    """Admin: Payout stats overview"""
-    await require_admin(request)
-    all_wd = await db.withdrawals.find({}, {"_id": 0}).to_list(1000)
-    pending = [w for w in all_wd if w.get("status") == "pending"]
-    processing = [w for w in all_wd if w.get("status") == "processing"]
-    completed = [w for w in all_wd if w.get("status") == "completed"]
-    failed = [w for w in all_wd if w.get("status") == "failed"]
-    # Get total user balances
-    wallets = await db.wallets.find({}, {"_id": 0}).to_list(1000)
-    total_balance = sum(w.get("balance", 0) for w in wallets)
-    return {
-        "pending_count": len(pending),
-        "pending_amount": round(sum(w.get("amount", 0) for w in pending), 2),
-        "processing_count": len(processing),
-        "processing_amount": round(sum(w.get("amount", 0) for w in processing), 2),
-        "completed_count": len(completed),
-        "completed_amount": round(sum(w.get("amount", 0) for w in completed), 2),
-        "failed_count": len(failed),
-        "total_user_balances": round(total_balance, 2),
-    }
-
-# --- Payout Schedule Settings (MUST be before {withdrawal_id} route) ---
-
-@api_router.get("/admin/payouts/schedule")
-async def get_payout_schedule(request: Request):
-    """Admin: Get payout schedule config"""
-    await require_admin(request)
-    defaults = {"key": "schedule", "frequency": "monthly", "day_of_month": 1,
-                "min_threshold": 100.0, "auto_process": False, "notify_email": True}
-    config = await db.payout_settings.find_one({"key": "schedule"}, {"_id": 0})
-    if not config:
-        return defaults
-    # Merge with defaults to ensure all fields are present
-    return {**defaults, **config}
-
-@api_router.put("/admin/payouts/schedule")
-async def update_payout_schedule(request: Request):
-    """Admin: Update payout schedule config"""
-    await require_admin(request)
-    body = await request.json()
-    update = {}
-    for field in ["frequency", "day_of_month", "min_threshold", "auto_process", "notify_email"]:
-        if field in body:
-            update[field] = body[field]
-    if update:
-        update["updated_at"] = datetime.now(timezone.utc).isoformat()
-        await db.payout_settings.update_one(
-            {"key": "schedule"}, {"$set": update}, upsert=True
-        )
-    config = await db.payout_settings.find_one({"key": "schedule"}, {"_id": 0})
-    return config
-
-@api_router.post("/admin/payouts/auto-process")
-async def auto_process_payouts(request: Request):
-    """Admin: Auto-process all eligible pending payouts (balance >= threshold)"""
-    await require_admin(request)
-    config = await db.payout_settings.find_one({"key": "schedule"}, {"_id": 0})
-    threshold = (config or {}).get("min_threshold", 100.0)
-    notify = (config or {}).get("notify_email", True)
-    pending = await db.withdrawals.find({"status": "pending"}, {"_id": 0}).to_list(1000)
-    processed = 0
-    notified = 0
-    for w in pending:
-        if w.get("amount", 0) < threshold:
-            continue
-        now_iso = datetime.now(timezone.utc).isoformat()
-        await db.withdrawals.update_one({"id": w["id"]}, {"$set": {
-            "status": "processing", "updated_at": now_iso,
-            "auto_processed": True, "processing_started_at": now_iso,
-        }})
-        processed += 1
-        # Send email notification
-        if notify:
-            try:
-                user = await db.users.find_one({"id": w.get("user_id")}, {"_id": 0, "email": 1, "artist_name": 1, "name": 1})
-                if user and user.get("email"):
-                    from routes.email_routes import send_email
-                    artist_name = user.get("artist_name") or user.get("name", "Artist")
-                    await send_email(user["email"],
-                        f"Kalmori Payout Processing - ${w['amount']:.2f}",
-                        f"""<div style="font-family:Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background:#000;color:#fff;border-radius:16px;overflow:hidden;">
-                        <div style="background:linear-gradient(135deg,#7C4DFF,#E040FB);padding:30px;text-align:center;">
-                        <h1 style="color:white;margin:0 0 4px;font-size:11px;letter-spacing:5px;font-weight:800;text-transform:uppercase;opacity:0.85;">KALMORI</h1>
-                        <h2 style="color:white;margin:0;font-size:22px;">Payout Processing</h2>
-                        </div>
-                        <div style="padding:30px;">
-                        <p style="color:#ccc;font-size:15px;">Hi {artist_name},</p>
-                        <p style="color:#ccc;font-size:15px;">Your payout of <b>${w['amount']:.2f} USD</b> is now being processed.</p>
-                        <div style="background:#111;border:1px solid #222;border-radius:12px;padding:20px;margin:20px 0;">
-                        <p style="color:#888;font-size:13px;margin:0 0 8px;">Payout ID: {w['id']}</p>
-                        <p style="color:#888;font-size:13px;margin:0 0 8px;">Method: {w.get('method', 'PayPal').upper()}</p>
-                        <p style="color:#888;font-size:13px;margin:0;">Amount: <span style="color:#4CAF50;font-weight:bold;">${w['amount']:.2f}</span></p>
-                        </div>
-                        <p style="color:#888;font-size:13px;">You will receive your funds within 3-5 business days.</p>
-                        <p style="color:#555;font-size:12px;margin-top:28px;padding-top:16px;border-top:1px solid #222;text-align:center;">Kalmori Digital Distribution | support@kalmori.org</p>
-                        </div></div>""")
-                    notified += 1
-            except Exception as e:
-                logger.warning(f"Payout notification email failed for {w['id']}: {e}")
-    return {"message": f"Auto-processed {processed} payouts, {notified} notifications sent",
-            "processed": processed, "notified": notified, "threshold": threshold}
-
-# --- Individual Payout Update (MUST be after /schedule routes) ---
-
-@api_router.put("/admin/payouts/{withdrawal_id}")
-async def admin_update_payout(withdrawal_id: str, request: Request):
-    """Admin: Update payout status (pending -> processing -> completed/failed)"""
-    await require_admin(request)
-    body = await request.json()
-    new_status = body.get("status")
-    if new_status not in ["processing", "completed", "failed", "pending"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
-    wd = await db.withdrawals.find_one({"id": withdrawal_id})
-    if not wd:
-        raise HTTPException(status_code=404, detail="Withdrawal not found")
-    update = {"status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}
-    if body.get("transaction_ref"):
-        update["transaction_ref"] = body["transaction_ref"]
-    if body.get("notes"):
-        update["notes"] = body["notes"]
-    if new_status == "completed":
-        update["paid_at"] = datetime.now(timezone.utc).isoformat()
-        await db.wallets.update_one(
-            {"user_id": wd["user_id"]},
-            {"$inc": {"pending_balance": -wd["amount"], "total_withdrawn": wd["amount"]}}
-        )
-    elif new_status == "failed":
-        await db.wallets.update_one(
-            {"user_id": wd["user_id"]},
-            {"$inc": {"balance": wd["amount"], "pending_balance": -wd["amount"]}}
-        )
-    await db.withdrawals.update_one({"id": withdrawal_id}, {"$set": update})
-    return {"message": f"Payout updated to {new_status}", "id": withdrawal_id}
-
-@api_router.post("/admin/payouts/batch")
-async def admin_batch_process(request: Request):
-    """Admin: Batch update multiple payout statuses"""
-    await require_admin(request)
-    body = await request.json()
-    ids = body.get("withdrawal_ids", [])
-    new_status = body.get("status", "processing")
-    if new_status not in ["processing", "completed", "failed"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
-    updated = 0
-    for wid in ids:
-        wd = await db.withdrawals.find_one({"id": wid})
-        if not wd:
-            continue
-        update = {"status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}
-        if new_status == "completed":
-            update["paid_at"] = datetime.now(timezone.utc).isoformat()
-            await db.wallets.update_one({"user_id": wd["user_id"]},
-                {"$inc": {"pending_balance": -wd["amount"], "total_withdrawn": wd["amount"]}})
-        elif new_status == "failed":
-            await db.wallets.update_one({"user_id": wd["user_id"]},
-                {"$inc": {"balance": wd["amount"], "pending_balance": -wd["amount"]}})
-        await db.withdrawals.update_one({"id": wid}, {"$set": update})
-        updated += 1
-    return {"message": f"{updated} payouts updated to {new_status}", "updated": updated}
-
-@api_router.get("/admin/payouts/export")
-async def admin_export_payouts(request: Request, status: str = "pending"):
-    """Admin: Export payout report as CSV"""
-    await require_admin(request)
-    query = {} if status == "all" else {"status": status}
-    withdrawals = await db.withdrawals.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    import csv
-    import io
-    text_buf = io.StringIO()
-    writer = csv.writer(text_buf)
-    writer.writerow(["ID", "User", "Email", "Amount (USD)", "Method", "PayPal Email", "Status", "Requested", "Paid At", "Transaction Ref", "Notes"])
-    for w in withdrawals:
-        user = await db.users.find_one({"id": w.get("user_id")}, {"_id": 0, "email": 1, "artist_name": 1})
-        writer.writerow([
-            w.get("id", ""), (user or {}).get("artist_name", ""), (user or {}).get("email", ""),
-            f'{w.get("amount", 0):.2f}', w.get("method", ""), w.get("paypal_email", ""),
-            w.get("status", ""), w.get("created_at", "")[:10], w.get("paid_at", "")[:10] if w.get("paid_at") else "",
-            w.get("transaction_ref", ""), w.get("notes", ""),
-        ])
-    csv_bytes = text_buf.getvalue().encode("utf-8")
-    return StreamingResponse(BytesIO(csv_bytes), media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="Kalmori_Payouts_{status}_{datetime.now(timezone.utc).strftime("%Y%m%d")}.csv"'})
+# Moved to routes/payouts_routes.py
 
 # ============= DSP DATA IMPORT (CSV) =============
 @api_router.post("/analytics/import")
@@ -3707,8 +3173,14 @@ async def get_public_artist_profile(slug: str):
     ]
     stream_data = {r["_id"]: r["streams"] for r in await db.stream_events.aggregate(stream_pipeline).to_list(200)}
 
+    # Fetch tracks for each release (for audio previews)
     for r in releases:
         r["total_streams"] = stream_data.get(r["id"], 0)
+        tracks = await db.tracks.find(
+            {"release_id": r["id"], "audio_url": {"$ne": None}},
+            {"_id": 0, "id": 1, "title": 1, "duration": 1, "track_number": 1}
+        ).sort("track_number", 1).to_list(50)
+        r["tracks"] = tracks
 
     # Get active pre-save campaigns
     presave_campaigns = await db.presave_campaigns.find(
@@ -3736,6 +3208,7 @@ async def get_public_artist_profile(slug: str):
         "instagram": profile.get("instagram"),
         "twitter": profile.get("twitter"),
         "slug": slug,
+        "theme_color": profile.get("theme_color", "#7C4DFF"),
         "releases": releases,
         "presave_campaigns": presave_campaigns,
         "stats": {
@@ -3743,6 +3216,66 @@ async def get_public_artist_profile(slug: str):
             "total_releases": len(releases),
         }
     }
+
+@api_router.get("/artist/{slug}/track/{track_id}/preview")
+async def stream_public_track_preview(slug: str, track_id: str):
+    """Public endpoint - stream a 30s preview of a track for the artist profile."""
+    profile = await db.artist_profiles.find_one({"slug": slug}, {"_id": 0, "user_id": 1})
+    if not profile:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    track = await db.tracks.find_one({"id": track_id, "artist_id": profile["user_id"]}, {"_id": 0})
+    if not track or not track.get("audio_url"):
+        raise HTTPException(status_code=404, detail="Track not found")
+    try:
+        data, content_type = get_object(track["audio_url"])
+        return StreamingResponse(BytesIO(data), media_type=content_type,
+            headers={"Content-Disposition": f"inline; filename=preview_{track_id}.mp3"})
+    except Exception:
+        raise HTTPException(status_code=404, detail="Audio not found")
+
+@api_router.get("/artist/{slug}/qr")
+async def get_artist_qr_code(slug: str, request: Request):
+    """Generate QR code PNG for the artist's public profile URL."""
+    import qrcode
+    from io import BytesIO as QRBuf
+    profile = await db.artist_profiles.find_one({"slug": slug}, {"_id": 0, "user_id": 1})
+    if not profile:
+        raise HTTPException(status_code=404, detail="Artist not found")
+    frontend_url = os.environ.get("FRONTEND_URL", "")
+    profile_url = f"{frontend_url}/artist/{slug}"
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=2)
+    qr.add_data(profile_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#7C4DFF", back_color="#0A0A0A")
+    buf = QRBuf()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png",
+        headers={"Content-Disposition": f"inline; filename={slug}-qr.png"})
+
+class UpdateThemeInput(BaseModel):
+    theme_color: str
+
+@api_router.put("/artist/profile/theme")
+async def set_artist_theme(data: UpdateThemeInput, request: Request):
+    """Set the theme color for the artist's public profile."""
+    user = await get_current_user(request)
+    color = data.theme_color.strip()
+    if not re.match(r'^#[0-9A-Fa-f]{6}$', color):
+        raise HTTPException(status_code=400, detail="Invalid hex color")
+    await db.artist_profiles.update_one(
+        {"user_id": user["id"]},
+        {"$set": {"theme_color": color, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"message": "Theme updated", "theme_color": color}
+
+@api_router.get("/artist/profile/theme")
+async def get_artist_theme(request: Request):
+    """Get the current user's theme color."""
+    user = await get_current_user(request)
+    profile = await db.artist_profiles.find_one({"user_id": user["id"]}, {"_id": 0, "theme_color": 1})
+    return {"theme_color": (profile or {}).get("theme_color", "#7C4DFF")}
 
 @api_router.get("/health")
 async def health_check():
@@ -3762,6 +3295,9 @@ from routes.beats_routes import beats_router, init_beats_routes
 from routes.collab_routes import collab_router
 from routes.admin_routes import admin_router
 from routes.label_routes import label_router
+from routes.messages_routes import messages_router
+from routes.royalty_routes import royalty_routes
+from routes.payouts_routes import payouts_router
 init_beats_routes(db, put_object, get_object, get_current_user, require_admin)
 app.include_router(ai_router)
 app.include_router(email_router)
@@ -3771,6 +3307,9 @@ app.include_router(beats_router)
 app.include_router(collab_router)
 app.include_router(admin_router)
 app.include_router(label_router)
+app.include_router(messages_router)
+app.include_router(royalty_routes)
+app.include_router(payouts_router)
 
 # CORS
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
