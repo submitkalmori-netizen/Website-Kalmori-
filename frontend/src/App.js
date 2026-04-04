@@ -60,6 +60,7 @@ import ReferralPage from './pages/ReferralPage';
 import AdminReferralsPage from './pages/AdminReferralsPage';
 import AdminAnalyticsReportsPage from './pages/AdminAnalyticsReportsPage';
 import CalendarPage from './pages/CalendarPage';
+import CollabHubPage from './pages/CollabHubPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -283,6 +284,7 @@ const AppRouter = () => {
       <Route path="/content-id" element={<ProtectedRoute><ContentIdPage /></ProtectedRoute>} />
       <Route path="/purchases" element={<ProtectedRoute><MyPurchasesPage /></ProtectedRoute>} />
       <Route path="/collaborations" element={<ProtectedRoute><CollaborationsPage /></ProtectedRoute>} />
+              <Route path="/collab-hub" element={<ProtectedRoute><CollabHubPage /></ProtectedRoute>} />
       <Route path="/presave-manager" element={<ProtectedRoute><PreSaveManagerPage /></ProtectedRoute>} />
       <Route path="/fan-analytics" element={<ProtectedRoute><FanAnalyticsPage /></ProtectedRoute>} />
       <Route path="/revenue" element={<ProtectedRoute><RevenueAnalyticsPage /></ProtectedRoute>} />
