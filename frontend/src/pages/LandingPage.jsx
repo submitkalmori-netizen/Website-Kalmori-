@@ -34,8 +34,8 @@ const HeroTypewriterSequence = () => {
   const [line2, setLine2] = useState('');
   const [desc, setDesc] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const LINE1 = "G.O.A.T In";
-  const LINE2 = "Music Distribution";
+  const LINE1 = "The G.O.A.T";
+  const LINE2 = "In Music Distribution";
   const DESC = "Get your music on Spotify, Apple Music, TikTok, YouTube, Tidal and more. Keep 100% ownership of your music and stay in control of your career.";
 
   useEffect(() => {
@@ -58,14 +58,42 @@ const HeroTypewriterSequence = () => {
     return () => clearTimeout(timeout);
   }, [phase, line1, line2, desc, isDeleting]);
 
+  // Split line1: "The" = white, "G.O.A.T" = animated
+  const renderLine1 = () => {
+    const theEnd = Math.min(line1.length, 3); // "The" is 3 chars
+    const thePart = line1.slice(0, theEnd);
+    const rest = line1.slice(4); // after "The "
+    return (
+      <>
+        <span className="text-white">{thePart}</span>
+        {line1.length > 3 && <span className="text-white"> </span>}
+        {rest && <AnimatedColorText>{rest}</AnimatedColorText>}
+      </>
+    );
+  };
+
+  // Split line2: "In" = white, "Music Distribution" = animated
+  const renderLine2 = () => {
+    const inEnd = Math.min(line2.length, 2); // "In" is 2 chars
+    const inPart = line2.slice(0, inEnd);
+    const rest = line2.slice(3); // after "In "
+    return (
+      <>
+        <span className="text-white">{inPart}</span>
+        {line2.length > 2 && <span className="text-white"> </span>}
+        {rest && <AnimatedColorText>{rest}</AnimatedColorText>}
+      </>
+    );
+  };
+
   return (
     <div className="text-left">
       <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[0.95] tracking-tight mb-4">
-        <AnimatedColorText>{line1}</AnimatedColorText>
+        {renderLine1()}
         {phase === 0 && <span className="animate-blink text-[#7C4DFF]">|</span>}
       </h1>
       <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight mb-8">
-        <AnimatedColorText>{line2}</AnimatedColorText>
+        {renderLine2()}
         {phase === 1 && <span className="animate-blink text-[#7C4DFF]">|</span>}
       </h2>
       <p className="text-base sm:text-lg text-gray-300 leading-relaxed max-w-xl min-h-[60px]">
@@ -209,9 +237,6 @@ const LandingPage = () => {
                   DISTRIBUTE MY MUSIC ONLINE <ArrowRight className="w-5 h-5" />
                 </button>
               </Link>
-              <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full border-2 border-[#7C4DFF] text-white font-bold text-sm tracking-[2px] hover:brightness-110 transition-all" style={{ animation: 'outlineCycle 6s ease-in-out infinite' }} data-testid="hero-pricing-btn">
-                VIEW PRICING
-              </button>
             </div>
             <p className="mt-6 text-sm text-gray-400 float-up-d3">Unlimited Releases starting at $20/year. Keep 100% of your royalties.</p>
             {/* Slide dots */}
