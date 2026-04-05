@@ -33,7 +33,7 @@ const HeroTypewriterSequence = () => {
   const [desc, setDesc] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [descPhase, setDescPhase] = useState(false);
-  const FULL_TEXT = "The G.O.A.T In Music Distribution";
+  const FULL_TEXT = "The Ai Production & Music Distribution Service";
   const DESC = "Get your music on Spotify, Apple Music, TikTok, YouTube, Tidal and more. Keep 100% ownership of your music and stay in control of your career.";
 
   useEffect(() => {
@@ -54,25 +54,30 @@ const HeroTypewriterSequence = () => {
   }, [charIndex, desc, isDeleting, descPhase]);
 
   const typed = FULL_TEXT.slice(0, charIndex);
-  // Split into line1 = "The G.O.A.T In" and line2 = "Music Distribution"
-  const splitAt = 14; // "The G.O.A.T In" = 14 chars
+  // Line 1: "The Ai Production &" (19 chars)
+  // Line 2: "Music Distribution Service"
+  const splitAt = 19;
   const line1 = typed.slice(0, Math.min(typed.length, splitAt));
   const line2 = typed.length > splitAt ? typed.slice(splitAt + 1) : '';
 
+  // "The" (0-2) white, " " (3), "Ai" (4-5) white, " " (6), "Production" (7-16) animated, " " (17), "&" (18) white
   const renderLine1 = () => {
-    // "The" (0-2) = white, " " (3), "G.O.A.T" (4-10) = animated, " " (11), "In" (12-13) = white
     const parts = [];
     const thePart = line1.slice(0, Math.min(line1.length, 3));
     if (thePart) parts.push(<span key="the" className="text-white">{thePart}</span>);
-    if (line1.length > 3) parts.push(<span key="s1" className="text-white"> </span>);
-    const goat = line1.length > 4 ? line1.slice(4, Math.min(line1.length, 11)) : '';
-    if (goat) parts.push(<AnimatedColorText key="goat">{goat}</AnimatedColorText>);
-    if (line1.length > 11) parts.push(<span key="s2" className="text-white"> </span>);
-    const inPart = line1.length > 12 ? line1.slice(12) : '';
-    if (inPart) parts.push(<span key="in" className="text-white">{inPart}</span>);
+    if (line1.length > 3) parts.push(<span key="s1"> </span>);
+    const ai = line1.length > 4 ? line1.slice(4, Math.min(line1.length, 6)) : '';
+    if (ai) parts.push(<span key="ai" className="text-white">{ai}</span>);
+    if (line1.length > 6) parts.push(<span key="s2"> </span>);
+    const prod = line1.length > 7 ? line1.slice(7, Math.min(line1.length, 17)) : '';
+    if (prod) parts.push(<AnimatedColorText key="prod">{prod}</AnimatedColorText>);
+    if (line1.length > 17) parts.push(<span key="s3"> </span>);
+    const amp = line1.length > 18 ? line1.slice(18, 19) : '';
+    if (amp) parts.push(<span key="amp" className="text-white">{amp}</span>);
     return parts;
   };
 
+  // "Music Distribution Service" - "Music Distribution" animated, " " , "Service" animated
   const renderLine2 = () => {
     if (!line2) return null;
     return <AnimatedColorText>{line2}</AnimatedColorText>;
