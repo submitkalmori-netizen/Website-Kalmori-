@@ -33,7 +33,7 @@ async def send_email(to: str, subject: str, html: str):
         return False
     try:
         import asyncio
-        params = {"from": f"Kalmori <{SENDER_EMAIL}>", "to": [to], "subject": subject, "html": html}
+        params = {"from": f"Kalmori <{SENDER_EMAIL}>", "to": [to], "subject": subject, "html": html, "reply_to": "submitkalmori@gmail.com"}
         await asyncio.to_thread(resend.Emails.send, params)
         logger.info(f"Email sent: {subject} -> {to}")
         return True
