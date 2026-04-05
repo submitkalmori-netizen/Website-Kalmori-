@@ -1858,6 +1858,7 @@ async def complete_referral(request: Request):
         "type": "referral_reward",
         "message": f"Your referral {user.get('artist_name', user.get('name', 'Someone'))} just signed up! You earned a free month of Rise.",
         "read": False,
+        "action_url": "/wallet",
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     # Give the new user Rise for free too
@@ -1870,6 +1871,7 @@ async def complete_referral(request: Request):
         "type": "referral_welcome",
         "message": "Welcome! Your referral code gave you a free month of Rise. Enjoy!",
         "read": False,
+        "action_url": "/dashboard",
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"message": "Referral completed! Both you and the referrer earned a free month of Rise."}
@@ -2004,7 +2006,7 @@ async def send_collab_invite(request: Request):
         "id": f"notif_{uuid.uuid4().hex[:12]}", "user_id": post["user_id"],
         "type": "collab_invite",
         "message": f"{user.get('artist_name', 'Someone')} wants to collaborate on \"{post['title']}\"",
-        "read": False, "created_at": datetime.now(timezone.utc).isoformat(),
+        "read": False, "action_url": "/collaborations", "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return invite
 
@@ -2056,7 +2058,7 @@ async def respond_to_invite(invite_id: str, request: Request):
         "id": f"notif_{uuid.uuid4().hex[:12]}", "user_id": invite["from_user_id"],
         "type": "collab_response",
         "message": f"{user.get('artist_name', 'Someone')} {new_status} your collaboration invite for \"{invite['post_title']}\"",
-        "read": False, "created_at": datetime.now(timezone.utc).isoformat(),
+        "read": False, "action_url": "/collaborations", "created_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"message": f"Invite {new_status}"}
 

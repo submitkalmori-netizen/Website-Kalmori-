@@ -140,7 +140,7 @@ async def accept_invitation(collab_id: str, request: Request):
         "user_id": collab["owner_id"],
         "type": "collaboration_accepted",
         "message": f"{user.get('artist_name', user.get('name', 'A collaborator'))} accepted your collaboration invite for \"{collab.get('release_title', '')}\"",
-        "read": False, "created_at": now,
+        "read": False, "action_url": "/collaborations", "created_at": now,
     })
     return {"message": "Invitation accepted"}
 
@@ -161,7 +161,7 @@ async def decline_invitation(collab_id: str, request: Request):
         "user_id": collab["owner_id"],
         "type": "collaboration_declined",
         "message": f"{user.get('artist_name', user.get('name', 'A collaborator'))} declined your collaboration invite for \"{collab.get('release_title', '')}\"",
-        "read": False, "created_at": now,
+        "read": False, "action_url": "/collaborations", "created_at": now,
     })
     return {"message": "Invitation declined"}
 

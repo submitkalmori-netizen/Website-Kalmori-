@@ -162,7 +162,7 @@ async def submit_canvas(canvas_id: str, request: Request):
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()), "user_id": user["id"], "type": "canvas",
         "message": f"Canvas for '{canvas.get('release_title', 'your release')}' has been submitted for review. Expected approval: 24-48 hours.",
-        "read": False, "created_at": datetime.now(timezone.utc).isoformat()
+        "read": False, "action_url": "/spotify-canvas", "created_at": datetime.now(timezone.utc).isoformat()
     })
     return {"message": "Canvas submitted for Spotify review", "status": "submitted"}
 
@@ -216,7 +216,7 @@ async def register_content_id(data: ContentIdRegistration, request: Request):
     await db.notifications.insert_one({
         "id": str(uuid.uuid4()), "user_id": user["id"], "type": "content_id",
         "message": f"Content ID registration for '{release.get('title', '')}' is being processed. Asset ID: {registration['asset_id']}",
-        "read": False, "created_at": datetime.now(timezone.utc).isoformat()
+        "read": False, "action_url": "/content-id", "created_at": datetime.now(timezone.utc).isoformat()
     })
     
     registration.pop("_id", None)

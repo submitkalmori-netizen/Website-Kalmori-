@@ -542,6 +542,7 @@ async def send_admin_signup_notification(user_name: str, user_email: str, user_r
         "type": "new_signup",
         "message": f"New {role_label} signed up: {user_name} ({user_email})",
         "read": False,
+        "action_url": "/admin",
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -652,6 +653,7 @@ async def send_campaign(campaign_id: str, request: Request):
             "type": "campaign",
             "message": campaign["subject"],
             "read": False,
+            "action_url": "/dashboard",
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
         sent += 1
@@ -818,6 +820,7 @@ async def send_lead_reminder(request: Request):
         "type": "draft_reminder",
         "message": f"Don't forget to finish your {item_label} \"{title}\"! It's saved as a draft.",
         "read": False,
+        "action_url": "/releases",
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -874,6 +877,7 @@ async def send_all_lead_reminders(request: Request):
                 "type": "draft_reminder",
                 "message": f"Don't forget to finish your {item_label} \"{title}\"!",
                 "read": False,
+                "action_url": "/releases",
                 "created_at": now.isoformat(),
             })
             await col.update_one({"id": item["id"]}, {"$set": {"reminder_sent": True}})

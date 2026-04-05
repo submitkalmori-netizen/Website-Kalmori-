@@ -786,6 +786,7 @@ async def admin_import_royalties(request: Request):
                 "type": "royalty_update",
                 "message": f"New earnings of ${notif['total']:.2f} have been added to your account via Kalmori Distribution.",
                 "read": False,
+                "action_url": "/wallet",
                 "created_at": now,
             })
             # Send email if they have one on file
@@ -1058,6 +1059,7 @@ async def check_due_schedules(request: Request):
             "type": "schedule_reminder",
             "message": f"Scheduled import due: {sched['name']}{artist_part}{template_part}. Upload the {sched['frequency']} report now.",
             "read": False,
+            "action_url": "/admin",
             "created_at": now_str,
         })
 
@@ -1174,6 +1176,7 @@ async def bulk_assign_unmatched(data: BulkAssignInput, request: Request):
             "type": "royalty_update",
             "message": f"New earnings of ${total_rev:.2f} have been assigned to your account via Kalmori Distribution.",
             "read": False,
+            "action_url": "/wallet",
             "created_at": now,
         })
 
