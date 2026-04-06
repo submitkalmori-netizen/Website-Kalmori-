@@ -11,16 +11,11 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 - **Auth**: JWT + Google OAuth | **DSP**: Spotify Web API (spotipy)
 
 ## Implemented Features (All Tested)
-1-38. Previous features (Auth, Subscriptions, Releases, Distribution, Analytics, AI, Beats, Contracts, Messaging, Royalty Splits, Payouts, Artist Profiles, Page Builder, Spotify, Cookie Consent, Feature Announcements, Analytics Cleanup, CSV Admin-Only Import, etc.)
+1-45. All previous features (Auth, Subscriptions, Releases, Distribution, Analytics, AI, Beats, Contracts, Messaging, Royalty Splits, Payouts, Artist Profiles, Page Builder, Spotify, Cookie Consent, Feature Announcements UI, Notification Bank, Analytics Cleanup, CSV Admin-Only Import, Role Selection, Global Token Refresh, etc.)
 
 ### Latest Session (Apr 6, 2026)
-39. **Role Selection (Artist/Producer/Label)** — Registration flow now includes 3 distinct account types with separate colors/icons. Backend accepts artist, producer, label roles.
-40. **Admin Signup Notifications (ALL Admins)** — Fixed: send_admin_signup_notification now notifies ALL admin accounts (not just the first one). Both email + in-app notification sent.
-41. **Notification Read State Fix** — Click handler now awaits markRead API call before navigating. Prevents race condition where notification reappears as unread.
-42. **Admin Notification Bank** — Full-page admin notification history at /admin/notifications. Features: search, type filter (new_signup, feature_announcement, etc.), read/unread filter, pagination, mark-as-read, delete.
-43. **Admin Feature Announcements UI** — CRUD page at /admin/feature-announcements for managing feature announcements with plan gating.
-44. **Global Axios Token Refresh** — Auto-refreshes access token on 401 responses.
-45. **Spotify Error Handling** — Shows error state instead of redirecting to login.
+46. **Individual User Delete** — Admin can delete any non-admin user from /admin/users. Deletes ALL related data across 18+ collections (releases, tracks, beats, messages, analytics, wallets, etc). Admin accounts protected (returns 403). Confirmation modal with warning.
+47. **ALL Admin Notifications Sync** — Fixed 3 notification sources (new_signup, new_submission, schedule_reminder) to use find() instead of find_one(). Both admin@kalmori.com AND submitkalmori@gmail.com now receive all notifications.
 
 ## Account Types
 | Role | Description |
