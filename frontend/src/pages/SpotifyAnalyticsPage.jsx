@@ -11,6 +11,7 @@ export default function SpotifyAnalyticsPage() {
   const [status, setStatus] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -25,7 +26,12 @@ export default function SpotifyAnalyticsPage() {
         setData(dataRes.data);
       }
     } catch (err) {
-      if (err.response?.status === 401) navigate('/login');
+      console.error('Spotify load error:', err);
+      if (err.response?.status === 401) {
+        navigate('/login');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to load Spotify data. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -47,6 +53,7 @@ export default function SpotifyAnalyticsPage() {
         </div>
         <h1 className="text-2xl font-bold text-white mb-3">Connect Spotify</h1>
         <p className="text-sm text-gray-400 mb-6">Link your Spotify account to see real-time artist data, top tracks, and follower analytics.</p>
+        {error && <p className="text-sm text-red-400 mb-4" data-testid="spotify-error">{error}</p>}
         <button onClick={() => navigate('/settings')} className="px-6 py-3 bg-[#1DB954] text-white rounded-full text-sm font-bold hover:bg-[#1DB954]/80 transition-all" data-testid="go-to-settings-btn">
           Go to Settings <ArrowRight className="w-4 h-4 inline ml-1" />
         </button>

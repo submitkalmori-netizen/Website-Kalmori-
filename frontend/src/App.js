@@ -9,6 +9,42 @@ import { CartProvider } from './context/CartContext';
 // Configure axios for backward compatibility with cookie-based pages
 axios.defaults.withCredentials = true;
 
+// Global axios interceptor: auto-refresh token on 401
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error) => {
+  failedQueue.forEach(p => error ? p.reject(error) : p.resolve());
+  failedQueue = [];
+};
+
+axios.interceptors.response.use(
+  res => res,
+  async error => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/login') && !originalRequest.url?.includes('/auth/refresh')) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve: () => resolve(axios(originalRequest)), reject });
+        });
+      }
+      originalRequest._retry = true;
+      isRefreshing = true;
+      try {
+        await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auth/refresh`, {}, { withCredentials: true });
+        processQueue(null);
+        return axios(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -30,6 +66,7 @@ import AdminRoyaltyImportPage from './pages/AdminRoyaltyImportPage';
 import AdminUserDetailPage from './pages/AdminUserDetailPage';
 import AdminCampaignsPage from './pages/AdminCampaignsPage';
 import AdminLeadsPage from './pages/AdminLeadsPage';
+import AdminFeatureAnnouncementsPage from './pages/AdminFeatureAnnouncementsPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import AgreementPage from './pages/AgreementPage';
 import PricingPage from './pages/PricingPage';
@@ -325,6 +362,7 @@ const AppRouter = () => {
               <Route path="/admin/payouts" element={<AdminRoute><AdminPayoutsPage /></AdminRoute>} />
               <Route path="/admin/page-builder" element={<AdminRoute><PageBuilderPage /></AdminRoute>} />
               <Route path="/admin/page-builder/:slug" element={<AdminRoute><PageBuilderPage /></AdminRoute>} />
+              <Route path="/admin/feature-announcements" element={<AdminRoute><AdminFeatureAnnouncementsPage /></AdminRoute>} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/agreement" element={<AgreementPage />} />
       <Route path="/pricing" element={<PricingPage />} />

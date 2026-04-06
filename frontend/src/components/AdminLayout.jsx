@@ -38,6 +38,7 @@ const AdminLayout = ({ children }) => {
     { path: '/admin/analytics-reports', icon: <ChartLineUp className="w-5 h-5" />, label: 'Analytics Reports' },
     { path: '/admin/contracts', icon: <FileText className="w-5 h-5" />, label: 'Contracts' },
     { path: '/admin/payouts', icon: <Wallet className="w-5 h-5" />, label: 'Payouts' },
+    { path: '/admin/feature-announcements', icon: <Bell className="w-5 h-5" />, label: 'Announcements' },
     { path: '/admin/page-builder/landing', icon: <PaintBrush className="w-5 h-5" />, label: 'Page Builder' },
   ];
 
