@@ -107,6 +107,7 @@ import RoyaltySplitsPage from './pages/RoyaltySplitsPage';
 import PageBuilderPage from './pages/PageBuilderPage';
 import SpotifyAnalyticsPage from './pages/SpotifyAnalyticsPage';
 import FeaturesPage from './pages/FeaturesPage';
+import FAQPage from './pages/FAQPage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -368,6 +369,7 @@ const AppRouter = () => {
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/agreement" element={<AgreementPage />} />
       <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/faq" element={<FAQPage />} />
       <Route path="/services" element={<ServicesPage />} />
       <Route path="/about" element={<AboutPage />} />
       <Route path="/contact" element={<ContactPage />} />

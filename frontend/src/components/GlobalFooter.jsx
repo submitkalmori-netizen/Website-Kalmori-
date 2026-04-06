@@ -17,6 +17,7 @@ const GlobalFooter = () => (
       <Link to="/about" className="text-sm text-gray-400 hover:text-white transition-colors">About</Link>
       <Link to="/services" className="text-sm text-gray-400 hover:text-white transition-colors">Services</Link>
       <Link to="/pricing" className="text-sm text-gray-400 hover:text-white transition-colors">Pricing</Link>
+                <Link to="/faq" className="text-sm text-gray-400 hover:text-white transition-colors">FAQ</Link>
       <Link to="/contact" className="text-sm text-gray-400 hover:text-white transition-colors">Contact</Link>
       <Link to="/stores" className="text-sm text-gray-400 hover:text-white transition-colors">Stores</Link>
       <Link to="/terms" className="text-sm text-gray-400 hover:text-white transition-colors">Terms</Link>

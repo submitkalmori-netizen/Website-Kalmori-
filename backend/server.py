@@ -1583,20 +1583,26 @@ async def export_revenue_pdf(request: Request):
 SUBSCRIPTION_PLANS = {
     "free": {
         "name": "Free", "price": 0, "revenue_share": 20,
-        "max_releases": 1,
-        "features": ["1 release per year", "150+ streaming platforms", "Free ISRC codes", "Basic analytics", "Standard support"],
+        "max_releases": -1,
+        "release_types": ["single", "ep", "album"],
+        "pay_per_release": False,
+        "features": ["Unlimited releases", "150+ streaming platforms", "Free ISRC codes", "Basic analytics", "Standard support", "Kalmori keeps 20% of revenue"],
         "locked": ["ai_strategy", "revenue_export", "content_id", "spotify_canvas", "leaderboard", "goals", "presave", "fan_analytics", "collaborations", "spotify_data", "beat_marketplace", "messaging", "royalty_splits"]
     },
     "rise": {
-        "name": "Rise", "price": 9.99, "revenue_share": 10,
+        "name": "Rise", "price": 24.99, "revenue_share": 5,
         "max_releases": -1,
-        "features": ["Unlimited releases", "150+ streaming platforms", "Free ISRC & UPC codes", "Advanced analytics", "Revenue dashboard", "Fan analytics", "In-App messaging", "Beat marketplace access", "Priority support"],
+        "release_types": ["single"],
+        "pay_per_release": True,
+        "features": ["Single releases (pay per release)", "150+ streaming platforms", "Free ISRC & UPC codes", "Advanced analytics", "Revenue dashboard", "Fan Analytics", "In-App messaging", "Beat marketplace access", "Goal Tracking", "Priority support", "Kalmori keeps only 5% of revenue"],
         "locked": ["ai_strategy", "content_id", "spotify_canvas", "leaderboard", "presave", "royalty_splits", "spotify_data"]
     },
     "pro": {
-        "name": "Pro", "price": 19.99, "revenue_share": 0,
+        "name": "Pro", "price": 49.99, "revenue_share": 0,
         "max_releases": -1,
-        "features": ["Everything in Rise", "Keep 100% royalties", "AI Release Strategy", "Revenue Export (PDF/CSV)", "YouTube Content ID", "Spotify Canvas", "Spotify Data (Real API)", "Release Leaderboard", "Goal Tracking", "Pre-Save Campaigns", "Collaborations & Splits", "Producer Royalty Splits", "Fan Analytics", "Beat Marketplace", "In-App Messaging", "Dedicated support"],
+        "release_types": ["single", "ep", "album"],
+        "pay_per_release": False,
+        "features": ["Everything in Rise", "Keep 100% of royalties", "Album & Single releases", "AI Release Strategy", "Revenue Export (PDF/CSV)", "YouTube Content ID", "Spotify Canvas", "Spotify Data (Real API)", "Release Leaderboard", "Pre-Save Campaigns", "Collaborations & Splits", "Producer Royalty Splits", "Dedicated account manager"],
         "locked": []
     },
 }

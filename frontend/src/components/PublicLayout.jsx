@@ -27,6 +27,7 @@ const PublicLayout = ({ children }) => {
   // Page title mapping for back button header
   const pageTitles = {
     '/pricing': 'Pricing',
+    '/faq': 'FAQ',
     '/leasing': 'Leasing',
     '/promoting': 'Promotion',
     '/publishing': 'Publishing',
@@ -63,6 +64,7 @@ const PublicLayout = ({ children }) => {
     { path: '/', icon: <House className="w-6 h-6" weight="fill" />, label: 'Home', color: '#E040FB' },
     { path: '/releases', icon: <Disc className="w-6 h-6" weight="fill" />, label: 'My Releases', color: '#4CAF50' },
     { path: '/pricing', icon: <Tag className="w-6 h-6" weight="fill" />, label: 'Pricing', color: '#E040FB' },
+    { path: '/faq', icon: <Info className="w-6 h-6" weight="fill" />, label: 'FAQ', color: '#0095FF' },
     { path: '/leasing', icon: <MusicNote className="w-6 h-6" weight="fill" />, label: 'Leasing', color: '#FF4081' },
     { path: '/promoting', icon: <Megaphone className="w-6 h-6" weight="fill" />, label: 'Promoting', color: '#E040FB' },
     { path: '/publishing', icon: <FileText className="w-6 h-6" weight="fill" />, label: 'Publishing', color: '#FFD700' },
