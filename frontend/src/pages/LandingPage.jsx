@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import PublicLayout from '../components/PublicLayout';
 import GlobalFooter from '../components/GlobalFooter';
 import { DynamicPageRenderer } from '../components/DynamicPageRenderer';
-import { ArrowRight, Check, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo, InstagramLogo, TwitterLogo, Envelope, MusicNote, MusicNotes, Playlist, Rocket, CheckCircle, Headset, Globe, CurrencyDollar, ShieldCheck, Star, Quotes, Play, Pause, Lightning, ChartLineUp, Brain, Users, Trophy, Target, ShareNetwork, ChatCircleDots, FileText, Waveform, HandCoins, Palette, QrCode, Copy } from '@phosphor-icons/react';
+import { ArrowRight, Check, SpotifyLogo, AppleLogo, YoutubeLogo, TiktokLogo, InstagramLogo, TwitterLogo, Envelope, MusicNote, MusicNotes, Playlist, Rocket, CheckCircle, Headset, Globe, CurrencyDollar, ShieldCheck, Star, Play, Pause, Lightning, ChartLineUp, Brain, Users, Trophy, Target, ShareNetwork, ChatCircleDots, FileText, Waveform, HandCoins, Palette, QrCode, Copy } from '@phosphor-icons/react';
 import axios from 'axios';
 import { API } from '../App';
 
@@ -129,13 +129,7 @@ const promoChannels = [
   { name: 'Playlists', desc: 'Editorial Pitching', icon: <Playlist className="w-7 h-7" weight="fill" />, color: '#1DB954', image: promoImages.playlists },
 ];
 
-// Artist testimonials
-const testimonials = [
-  { name: 'Rising Star', quote: "Kalmori changed my life. I can distribute my music on my own terms, keeping 100% of my rights and earnings.", avatar: 'RS' },
-  { name: 'Indie Producer', quote: "The best platform for independent artists. The analytics and AI features help me understand my audience better.", avatar: 'IP' },
-  { name: 'Beat Maker', quote: "I recommend Kalmori to every artist I meet. They make distribution easy and manageable.", avatar: 'BM' },
-];
-
+// Platform data
 const LandingPage = () => {
   const navigate = useNavigate();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -251,34 +245,80 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ===== UNLIMITED DISTRIBUTION BANNER ===== */}
+      {/* ===== FREE PLAN — Distribution Banner ===== */}
       <section className="py-24 px-6 bg-black" data-testid="distribution-section">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left — Description */}
             <div>
+              <p className="text-xs font-bold text-[#E040FB] tracking-[4px] mb-4">START FOR FREE</p>
               <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.05] tracking-tight text-white mb-6">
-                Unlimited Distribution Starting at <AnimatedColorText>$20/year</AnimatedColorText>
+                <AnimatedColorText>Unlimited</AnimatedColorText> Music Distribution
               </h2>
-              <p className="text-lg text-gray-400 leading-relaxed mb-8 max-w-xl">
-                Increase the reach of your music across the most popular stores & platforms. Empower yourself with unlimited distribution and get your music heard by a global audience.
+              <p className="text-lg text-gray-400 leading-relaxed mb-6 max-w-xl">
+                Distribute unlimited singles, EPs, and albums to 150+ streaming platforms worldwide. No upfront cost, no hidden fees. Kalmori keeps just 20% of your streaming revenue — you keep the rest.
               </p>
-              <p className="text-base text-gray-300 font-medium">
-                Keep <span className="text-[#E040FB] font-bold">100% ownership</span> of your music, maintaining creative control and authority in your music career.
-              </p>
-            </div>
-            {/* Platform Logos Grid */}
-            <div>
-              <div className="grid grid-cols-3 gap-4">
-                {platforms.map((p, i) => (
-                  <div key={i} className="bg-[#111] rounded-2xl py-8 px-4 flex flex-col items-center gap-3 border border-white/5 hover:border-white/20 transition-all group" data-testid={`platform-${p.name.toLowerCase().replace(' ', '-')}`}>
-                    <div style={{ color: p.color }} className="group-hover:scale-110 transition-transform">{p.icon}</div>
-                    <span className="text-sm font-semibold text-white">{p.name}</span>
+              <div className="space-y-3 mb-8">
+                {[
+                  'Unlimited releases (Singles, EPs, Albums)',
+                  '150+ streaming platforms including Spotify, Apple Music, YouTube',
+                  'Free ISRC codes with every track',
+                  'Basic analytics dashboard to track your streams',
+                  'Standard support from the Kalmori team',
+                  'Keep 100% ownership of your music at all times',
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-[#E040FB] flex-shrink-0" weight="bold" />
+                    <p className="text-sm text-gray-300">{item}</p>
                   </div>
                 ))}
               </div>
-              <div className="text-center mt-6">
-                <button onClick={() => navigate('/stores')} className="text-[#E040FB] text-sm font-bold tracking-wider inline-flex items-center gap-2 hover:gap-3 transition-all" data-testid="view-all-stores-btn">
-                  VIEW ALL 150+ STORES <ArrowRight className="w-4 h-4" />
+              <p className="text-sm text-gray-500 mb-8">
+                Revenue share: <span className="text-[#E040FB] font-bold">Kalmori keeps 20%</span> of your royalties. Upgrade to Rise or Pro to keep more.
+              </p>
+              <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="free-plan-cta-btn">
+                SEE ALL PLANS <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Right — Pricing Card (mirrors PricingPage style) */}
+            <div>
+              <div className="bg-[#111] rounded-3xl p-8 sm:p-10 border-2 border-[#E040FB] shadow-lg shadow-[#E040FB]/10 relative">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-5 py-1.5 rounded-full bg-[#E040FB] text-white text-xs font-black tracking-[3px]">FREE FOREVER</div>
+                <div className="text-center mb-6 pt-4">
+                  <div className="w-16 h-16 rounded-2xl bg-[#E040FB]/10 flex items-center justify-center mx-auto mb-4">
+                    <Lightning className="w-8 h-8 text-[#E040FB]" weight="fill" />
+                  </div>
+                  <p className="text-6xl font-black text-white">$0</p>
+                  <p className="text-sm text-gray-500 mt-2">No credit card required</p>
+                </div>
+                <div className="rounded-xl p-4 mb-6 text-center bg-[#E040FB]/5 border border-[#E040FB]/20">
+                  <p className="text-sm font-bold text-[#E040FB]">Kalmori keeps 20% of your royalties</p>
+                  <p className="text-xs text-gray-500 mt-1">You keep 80% of everything you earn</p>
+                </div>
+                <div className="space-y-3 mb-8">
+                  {['Unlimited releases', '150+ platforms', 'Free ISRC codes', 'Basic analytics', 'Standard support'].map((f, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Check className="w-4 h-4 text-[#4CAF50] flex-shrink-0" weight="bold" />
+                      <p className="text-sm text-gray-300">{f}</p>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => navigate('/register')} className="w-full py-4 rounded-xl bg-gradient-to-r from-[#7C4DFF] to-[#E040FB] text-white text-sm font-black tracking-[2px] hover:brightness-110 transition-all" data-testid="free-plan-signup-btn">
+                  GET STARTED FREE
+                </button>
+              </div>
+              {/* Platform logos below card */}
+              <div className="grid grid-cols-3 gap-3 mt-6">
+                {platforms.map((p, i) => (
+                  <div key={i} className="bg-[#111] rounded-xl py-4 px-3 flex flex-col items-center gap-2 border border-white/5 hover:border-white/20 transition-all group" data-testid={`platform-${p.name.toLowerCase().replace(' ', '-')}`}>
+                    <div style={{ color: p.color }} className="group-hover:scale-110 transition-transform">{p.icon}</div>
+                    <span className="text-xs font-semibold text-white">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="text-center mt-4">
+                <button onClick={() => navigate('/stores')} className="text-[#E040FB] text-xs font-bold tracking-wider inline-flex items-center gap-2 hover:gap-3 transition-all" data-testid="view-all-stores-btn">
+                  VIEW ALL 150+ STORES <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
             </div>
@@ -294,12 +334,15 @@ const LandingPage = () => {
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.05] tracking-tight text-white mb-8">
               What is <AnimatedColorText>Kalmori?</AnimatedColorText>
             </h2>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-300 mb-6">Your Independent Music Distribution Company</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-300 mb-6">Your All-in-One Music Distribution & Career Platform</h3>
             <p className="text-lg text-gray-400 leading-relaxed mb-6">
-              Kalmori is a leading global platform empowering independent artists to build sustainable careers. Through innovative technology and artist-first services, we offer distribution, publishing administration, and promotional tools that help musicians grow their audience and revenue.
+              Kalmori is a next-generation music distribution platform built for independent artists, producers, and labels who refuse to wait for permission. Whether you're a bedroom producer uploading your first beat, an emerging vocalist building a fanbase, or an established artist looking for smarter distribution — Kalmori gives you the tools to own your career.
+            </p>
+            <p className="text-lg text-gray-400 leading-relaxed mb-6">
+              We deliver your music to 150+ streaming platforms worldwide while giving you AI-powered analytics, real-time revenue tracking, a built-in beat marketplace, collaboration tools, and everything you need to grow. Young artists trust Kalmori to launch their careers. Established creators trust us to maximize their reach and revenue.
             </p>
             <p className="text-lg text-gray-400 leading-relaxed mb-10">
-              As a pioneer in indie music distribution, Kalmori is dedicated to making music accessible while keeping artists in full control of their creative work.
+              At Kalmori, we believe every voice deserves to be heard. No gatekeepers. No label politics. Just your music, your audience, and your revenue — on your terms.
             </p>
             <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="see-plans-btn">
               SEE OUR DISTRIBUTION PLANS <ArrowRight className="w-5 h-5" />
@@ -361,56 +404,86 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ===== STREAM & DISTRIBUTE — Full Width Text ===== */}
-      <section className="py-24 px-6 bg-[#0a0a0a]" data-testid="stream-distribute-section">
+      {/* ===== KALMORI ARTIST FEATURES ===== */}
+      <section className="py-24 px-6 bg-[#0a0a0a]" data-testid="artist-features-section">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="order-2 lg:order-1">
-              <div className="rounded-3xl overflow-hidden">
-                <img src={heroSlideImages[1]} alt="Distribution" className="w-full h-[450px] object-cover" />
+          <div className="mb-16">
+            <p className="text-xs font-bold text-[#E040FB] tracking-[4px] mb-4">FOR ARTISTS</p>
+            <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white mb-4">
+              Kalmori <AnimatedColorText>Artist</AnimatedColorText> Features
+            </h2>
+            <p className="text-lg text-gray-400 max-w-2xl">
+              Everything an independent artist needs to distribute, promote, and grow — all in one platform.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              { icon: <Globe className="w-7 h-7" weight="fill" />, color: '#E040FB', title: 'Global Distribution', desc: 'Release your music to 150+ platforms including Spotify, Apple Music, YouTube Music, TikTok, Amazon, Deezer, and more.' },
+              { icon: <ChartLineUp className="w-7 h-7" weight="fill" />, color: '#1DB954', title: 'Real-Time Analytics', desc: 'Track streams, revenue, fan demographics, listening trends, and geographic data across all platforms in one dashboard.' },
+              { icon: <CurrencyDollar className="w-7 h-7" weight="fill" />, color: '#FFD700', title: 'Revenue Dashboard', desc: 'See your earnings per platform, export reports as PDF or CSV, and use the royalty calculator to model future revenue.' },
+              { icon: <Brain className="w-7 h-7" weight="fill" />, color: '#9C27B0', title: 'AI Release Strategy', desc: 'Get AI-powered release plans with optimal timing, playlist targeting, and marketing recommendations tailored to your genre.' },
+              { icon: <Target className="w-7 h-7" weight="fill" />, color: '#FF6B6B', title: 'Pre-Save Campaigns', desc: 'Build hype before your release drops. Create pre-save pages where fans lock in your music on their streaming platform.' },
+              { icon: <Users className="w-7 h-7" weight="fill" />, color: '#2196F3', title: 'Collaboration Hub', desc: 'Find vocalists, producers, mixers, and songwriters. Post collabs, connect, and create together right inside Kalmori.' },
+              { icon: <Trophy className="w-7 h-7" weight="fill" />, color: '#FF9800', title: 'Release Leaderboard', desc: 'See how your releases stack up against your own catalog. Track momentum, hot streaks, and weekly performance.' },
+              { icon: <ShareNetwork className="w-7 h-7" weight="fill" />, color: '#00BCD4', title: 'Artist Public Profile', desc: 'Your shareable link-in-bio with audio previews, custom theme colors, social links, and QR code sharing.' },
+              { icon: <ShieldCheck className="w-7 h-7" weight="fill" />, color: '#7C4DFF', title: 'Keep 100% Ownership', desc: 'Your music, your masters. Kalmori never claims ownership or copyright. You stay in complete creative control.' },
+            ].map((f, i) => (
+              <div key={i} className="bg-[#111] rounded-2xl p-7 border border-white/5 hover:border-[#E040FB]/30 transition-all group" data-testid={`artist-feature-${i}`}>
+                <div className="w-12 h-12 rounded-xl mb-5 flex items-center justify-center group-hover:scale-110 transition-transform"
+                  style={{ backgroundColor: `${f.color}15`, color: f.color }}>
+                  {f.icon}
+                </div>
+                <h3 className="text-base font-bold text-white mb-2">{f.title}</h3>
+                <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
               </div>
-            </div>
-            <div className="order-1 lg:order-2">
-              <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white mb-4">
-                Stream & Distribute Your Music <AnimatedColorText>Without a Label</AnimatedColorText>
-              </h2>
-              <h3 className="text-xl font-bold text-gray-300 mb-6">Sell Your Music Online Worldwide</h3>
-              <p className="text-lg text-gray-400 leading-relaxed mb-8">
-                Before platforms like Kalmori, artists needed a label to get their music sold online. We changed that. Choose an unlimited distribution plan, upload your music, and we'll do the rest. Your music will hit top digital stores in no time.
-              </p>
-              <button onClick={() => navigate('/register')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="sell-music-btn">
-                SELL YOUR MUSIC <ArrowRight className="w-5 h-5" />
-              </button>
-            </div>
+            ))}
+          </div>
+          <div className="mt-10 text-center">
+            <button onClick={() => navigate('/register')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="artist-features-cta-btn">
+              START AS AN ARTIST <ArrowRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </section>
 
-      {/* ===== ARTIST TESTIMONIALS ===== */}
-      <section className="py-24 px-6 bg-black" data-testid="testimonials-section">
+      {/* ===== KALMORI PRODUCER FEATURES ===== */}
+      <section className="py-24 px-6 bg-black" data-testid="producer-features-section">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-xs font-bold text-[#E040FB] tracking-[4px] mb-4">TESTIMONIALS</p>
-            <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white">
-              What Are Artists Saying About <AnimatedColorText>Kalmori?</AnimatedColorText>
+          <div className="mb-16">
+            <p className="text-xs font-bold text-[#FFD700] tracking-[4px] mb-4">FOR PRODUCERS</p>
+            <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white mb-4">
+              Kalmori <span className="text-[#FFD700]">Producer</span> Features
             </h2>
+            <p className="text-lg text-gray-400 max-w-2xl">
+              Built for beat makers and instrumentalists. Sell your beats, manage licensing, earn royalties, and grow your production business.
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <div key={i} className="bg-[#111] rounded-3xl p-8 border border-white/5 hover:border-[#E040FB]/30 transition-all group">
-                <Quotes className="w-8 h-8 text-[#7C4DFF] mb-6 group-hover:text-[#E040FB] transition-colors" weight="fill" />
-                <p className="text-base text-gray-300 leading-relaxed mb-8">"{t.quote}"</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#7C4DFF] to-[#E040FB] flex items-center justify-center text-white font-bold text-sm">
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <p className="font-bold text-white">{t.name}</p>
-                    <p className="text-xs text-gray-500">Kalmori Artist</p>
-                  </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              { icon: <MusicNotes className="w-7 h-7" weight="fill" />, color: '#9C27B0', title: 'Beat Marketplace', desc: 'List your beats for sale with 4-tier licensing: Basic Lease, Premium Lease, Unlimited, and Exclusive. Set your own prices.' },
+              { icon: <FileText className="w-7 h-7" weight="fill" />, color: '#FF6B6B', title: 'Auto Contracts & E-Sign', desc: 'Every beat purchase auto-generates a legally-binding PDF contract with digital signatures. No manual paperwork needed.' },
+              { icon: <Waveform className="w-7 h-7" weight="fill" />, color: '#00BCD4', title: 'AI Audio Watermarking', desc: 'AI-generated voice tags automatically overlaid on all beat previews. Clean versions unlock only after purchase — full protection.' },
+              { icon: <HandCoins className="w-7 h-7" weight="fill" />, color: '#FFD700', title: 'Royalty Splits', desc: 'Auto-calculated royalty splits between producer and artist on every stream and sale. Earnings go directly to your wallet.' },
+              { icon: <ChartLineUp className="w-7 h-7" weight="fill" />, color: '#1DB954', title: 'Sales Analytics', desc: 'Track beat sales, preview plays, licensing revenue, and fan engagement. Know exactly which beats are performing best.' },
+              { icon: <ChatCircleDots className="w-7 h-7" weight="fill" />, color: '#2196F3', title: 'Direct Messaging', desc: 'Chat directly with artists interested in your beats. Share files, negotiate deals, and finalize collaborations all in-app.' },
+              { icon: <Globe className="w-7 h-7" weight="fill" />, color: '#E040FB', title: 'Distribute Your Own Music', desc: 'Producers can also distribute their own releases to 150+ platforms. Not just a marketplace — it is your full distribution hub.' },
+              { icon: <Users className="w-7 h-7" weight="fill" />, color: '#FF9800', title: 'Collaboration Hub', desc: 'Post that you are open for work. Connect with vocalists, rappers, and other producers looking for beats and production.' },
+              { icon: <CurrencyDollar className="w-7 h-7" weight="fill" />, color: '#7C4DFF', title: 'Instant Payouts', desc: 'Earnings from beat sales and streaming royalties are deposited directly into your Kalmori wallet. Withdraw anytime via PayPal or bank.' },
+            ].map((f, i) => (
+              <div key={i} className="bg-[#111] rounded-2xl p-7 border border-white/5 hover:border-[#FFD700]/30 transition-all group" data-testid={`producer-feature-${i}`}>
+                <div className="w-12 h-12 rounded-xl mb-5 flex items-center justify-center group-hover:scale-110 transition-transform"
+                  style={{ backgroundColor: `${f.color}15`, color: f.color }}>
+                  {f.icon}
                 </div>
+                <h3 className="text-base font-bold text-white mb-2">{f.title}</h3>
+                <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-10 text-center">
+            <button onClick={() => navigate('/register')} className="px-10 py-4 rounded-full bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black text-sm font-black tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#FFD700]/20" data-testid="producer-features-cta-btn">
+              START AS A PRODUCER <ArrowRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </section>
@@ -693,36 +766,41 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ===== MAXIMIZE EARNINGS — Publishing ===== */}
-      <section className="py-24 px-6 bg-black" data-testid="publishing-section">
+      {/* ===== KALMORI LABEL FEATURES BANNER ===== */}
+      <section className="py-24 px-6 bg-black" data-testid="label-features-section">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div>
-              <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white mb-6">
-                Maximize Your Earnings with Music <AnimatedColorText>Publishing</AnimatedColorText>
-              </h2>
-              <p className="text-lg text-gray-400 leading-relaxed mb-8">
-                Distribution isn't the only way to make money. Your original songs generate publishing revenue with every stream, video creation, view, or live performance worldwide.
-              </p>
-              <div className="space-y-4 mb-10">
+          <div className="rounded-3xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #7C4DFF 0%, #E040FB 50%, #FF4081 100%)' }}>
+            <div className="absolute inset-0 bg-black/20" />
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center p-10 sm:p-16">
+              <div>
+                <p className="text-xs font-bold text-white/70 tracking-[4px] mb-4">FOR LABELS</p>
+                <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white mb-6">
+                  Manage Your Roster with Kalmori
+                </h2>
+                <p className="text-lg text-white/80 leading-relaxed mb-8">
+                  Label accounts give you centralized control over your entire roster. Distribute releases for your artists, track analytics across all signings, manage royalty splits, and handle payouts — all from one powerful dashboard.
+                </p>
+                <button onClick={() => navigate('/register')} className="bg-white px-10 py-4 rounded-full font-bold text-sm tracking-[2px] flex items-center gap-3 text-[#7C4DFF] hover:brightness-95 transition-all shadow-lg" data-testid="label-cta-btn">
+                  START AS A LABEL <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-5">
                 {[
-                  'Collecting your royalties globally/worldwide',
-                  'Tracking publishing royalties from Spotify, YouTube, TikTok, Radio',
-                  'Offering advanced analytics on royalty sources',
-                  'All while you keep 100% of your copyrights',
+                  'Manage multiple artists under one account',
+                  'Centralized revenue & royalty dashboard',
+                  'Automated splits between label and artist',
+                  'Bulk release management & distribution',
+                  'Admin-level analytics for your entire catalog',
+                  'Priority support & dedicated account manager',
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <Check className="w-5 h-5 text-[#E040FB] flex-shrink-0" weight="bold" />
-                    <p className="text-base text-gray-300">{item}</p>
+                  <div key={i} className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-4 h-4 text-white" weight="bold" />
+                    </div>
+                    <p className="text-base text-white font-medium">{item}</p>
                   </div>
                 ))}
               </div>
-              <button onClick={() => navigate('/publishing')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="publishing-btn">
-                LEARN MORE <ArrowRight className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="rounded-3xl overflow-hidden shadow-2xl shadow-[#E040FB]/10">
-              <img src={heroSlideImages[0]} alt="Publishing" className="w-full h-[450px] object-cover" />
             </div>
           </div>
         </div>
@@ -838,53 +916,6 @@ const LandingPage = () => {
           </div>
         </section>
       )}
-
-      {/* ===== PRICING QUICK SECTION ===== */}
-      <section className="py-24 px-6 bg-[#0a0a0a]" data-testid="pricing-section">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-xs font-bold text-[#E040FB] tracking-[4px] mb-4">SIMPLE PRICING</p>
-            <h2 className="text-4xl sm:text-5xl font-black leading-[1.05] tracking-tight text-white">
-              Plans That <AnimatedColorText>Scale</AnimatedColorText> With You
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {[
-              { name: 'FREE', price: '$0', desc: 'Start distributing with revenue share', color: '#4CAF50', features: ['All platforms', '15-20% rev share', 'Basic analytics'] },
-              { name: 'SINGLE', price: '$20/yr', desc: 'Perfect for single releases', color: '#7C4DFF', features: ['Up to 3 tracks', '100% royalties', 'Free ISRC codes'] },
-              { name: 'ALBUM', price: '$75/yr', desc: 'Best value for full albums', color: '#FFD700', highlight: true, features: ['7+ tracks', 'Priority support', 'Free ISRC & UPC'] },
-            ].map((plan, i) => (
-              <div key={i} className={`bg-[#111] rounded-3xl p-8 border-2 ${plan.highlight ? 'border-[#FFD700] relative' : 'border-white/5'} hover:border-[#E040FB]/30 transition-all`} data-testid={`home-plan-${plan.name.toLowerCase().replace(/\s/g, '-')}`}>
-                {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#FFD700] text-black text-xs font-bold tracking-wider">
-                    BEST DEAL
-                  </div>
-                )}
-                <div className="text-center mb-6">
-                  <p className="text-4xl font-black" style={{ color: plan.color }}>{plan.price}</p>
-                  <h3 className="text-lg font-bold text-white mt-2">{plan.name}</h3>
-                  <p className="text-sm text-gray-400 mt-1">{plan.desc}</p>
-                </div>
-                <div className="space-y-3">
-                  {plan.features.map((f, j) => (
-                    <div key={j} className="flex items-center gap-2 text-sm text-gray-300">
-                      <Check className="w-4 h-4 text-[#E040FB]" weight="bold" /> {f}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-12 flex flex-col sm:flex-row gap-4 justify-center">
-            <button onClick={() => navigate('/register')} className="px-10 py-4 rounded-full animate-btn-gradient text-white text-sm font-bold tracking-[2px] inline-flex items-center gap-3 hover:brightness-110 transition-all shadow-lg shadow-[#E040FB]/20" data-testid="home-start-free-btn">
-              START FREE <ArrowRight className="w-4 h-4" />
-            </button>
-            <button onClick={() => navigate('/pricing')} className="px-10 py-4 rounded-full border-2 border-[#7C4DFF] text-white text-sm font-bold tracking-[2px] hover:brightness-110 transition-all" style={{ animation: 'outlineCycle 6s ease-in-out infinite' }} data-testid="home-pricing-btn">
-              ALL PRICING
-            </button>
-          </div>
-        </div>
-      </section>
 
       {/* ===== READY TO START JOURNEY — Gradient CTA ===== */}
       <section className="py-32 px-6 text-center relative overflow-hidden" data-testid="journey-section">
