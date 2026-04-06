@@ -24,6 +24,11 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 28. **Feature Announcements** — Admin creates announcements, all users notified with plan-gated access badges
 29. **What's New page** — /features shows Available (green ACTIVE) vs Locked (gold Upgrade) based on user plan
 30. **Reply-To Email** — All emails reply to submitkalmori@gmail.com
+31. **Cookie Consent** — Banner + backend DB logging
+32. **Landing Page Hero Text** — "The Ai Powered Music Distribution Service" with animations
+33. **Analytics Cleanup** — Removed ALL simulated/fake data. Endpoints return real DB data only (zeros when empty)
+34. **CSV Import Admin-Only** — Only admins can import streaming data via CSV. Button hidden for non-admin users
+35. **Removed Fake Percentages** — Stats cards no longer show hardcoded change indicators
 
 ## Subscription Tiers
 | Feature | Free | Rise | Pro |
@@ -36,11 +41,12 @@ Build a TuneCore clone / high-volume digital content aggregator and B2B e-commer
 | Fan Analytics | Locked | Unlocked | Unlocked |
 
 ## DB Collections
-users, releases, tracks, stream_events, artist_profiles, beats, contracts, conversations, messages, typing_status, royalty_splits, split_earnings, wallets, withdrawals, payout_settings, goals, notifications, notification_preferences, presave_campaigns, collaboration_posts, collab_invites, saved_strategies, digest_log, page_layouts, spotify_connections, feature_announcements
+users, releases, tracks, stream_events, artist_profiles, beats, contracts, conversations, messages, typing_status, royalty_splits, split_earnings, wallets, withdrawals, payout_settings, goals, notifications, notification_preferences, presave_campaigns, collaboration_posts, collab_invites, saved_strategies, digest_log, page_layouts, spotify_connections, feature_announcements, cookie_consents, imported_royalties
 
 ## Remaining Tasks
 - P0: Deploy to kalmori.org (Save to Github)
 - P0: Add custom domain in Resend for email delivery
+- P1: Apple Music Analytics API integration (pending user credentials)
 - P2: Admin UI form for creating feature announcements (currently API-only)
-- P2: Further server.py refactoring
-- P3: Apple Music / YouTube Music integration
+- P2: Further server.py refactoring into /routes/ modules
+- P3: YouTube Music / other DSP integrations
