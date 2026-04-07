@@ -2235,8 +2235,9 @@ async def startup():
 
     # Write test credentials
     from pathlib import Path
-    Path("/app/memory").mkdir(exist_ok=True)
-    with open("/app/memory/test_credentials.md", "w") as f:
+    memory_dir = Path(__file__).parent / "memory"
+    memory_dir.mkdir(exist_ok=True)
+    with open(memory_dir / "test_credentials.md", "w") as f:
         f.write(f"""# Test Credentials
 
 ## Admin User
