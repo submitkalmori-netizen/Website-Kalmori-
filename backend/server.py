@@ -2104,7 +2104,14 @@ app.include_router(analytics_router)
 app.include_router(subscription_router)
 
 # CORS
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
+_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+_allowed_origins = [
+    _FRONTEND_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://kalmori-distribution.vercel.app",
+]
+app.add_middleware(CORSMiddleware, allow_origins=_allowed_origins, allow_credentials=True,
     allow_methods=["*"], allow_headers=["*"], expose_headers=["*"])
 
 # ============= STARTUP =============
