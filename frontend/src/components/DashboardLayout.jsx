@@ -54,7 +54,7 @@ const NotificationPanel = ({ notifications, onMarkRead, onMarkAllRead, onClose, 
         notifications.map(n => {
           const targetUrl = n.action_url || NOTIFICATION_ROUTES[n.type] || '/dashboard';
           return (
-            <div key={n.id} className={`p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${!n.read ? (n.type === 'ai_insight' ? 'bg-[#E040FB]/5' : 'bg-[#7C4DFF]/5') : ''}`}
+            <div key={n.id} className={`group p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${!n.read ? (n.type === 'ai_insight' ? 'bg-[#E040FB]/5' : 'bg-[#7C4DFF]/5') : ''}`}
               onClick={async () => { if (!n.read) await onMarkRead(n.id); onNavigate(targetUrl); onClose(); }}
               data-testid={`notification-${n.id}`}>
               <div className="flex items-start gap-3">
